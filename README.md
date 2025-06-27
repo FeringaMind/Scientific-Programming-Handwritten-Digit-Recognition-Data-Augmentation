@@ -1,6 +1,6 @@
 # Handwritten Digit Recognition – Data Augmentation
 
-***This Project was created and maintained as part of the Scientific Programming course (B.Sc CompSci) @TUHH***
+***This Project was created and maintained as part of the Scientific Programming course (B.Sc CS) @TUHH***
 
 
 
