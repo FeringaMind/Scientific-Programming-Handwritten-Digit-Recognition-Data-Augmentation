@@ -47,9 +47,9 @@ The objective of this project is to develop and evaluate a handwritten digit cla
 
 - [ ] **2025-06-27 to 2025-07-04**: Sprint 1
 
-  ⬜ Write classifier Methods ⭐⭐⭐ *(refers to 2)*
+  	⬜ Write classifier Methods ⭐⭐⭐ *(refers to 2)*
 
-  ⬜ Write evaluation Methods ⭐⭐⭐ *(refers to 3)*
+  	⬜ Write evaluation Methods ⭐⭐⭐ *(refers to 3)*
 
 - [ ] **2025-07-05 to 2025-07-11**: Sprint 2
 
