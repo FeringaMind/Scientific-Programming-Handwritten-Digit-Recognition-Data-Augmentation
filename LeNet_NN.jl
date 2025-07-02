@@ -18,8 +18,10 @@ end
 
 # ╔═╡ 793b0fa9-28f5-4916-9732-6d953d9aa22f
 begin
-	using Pkg, Flux, CUDA, MLDatasets, PlutoUI, CairoMakie, LinearAlgebra, FileIO
+	using Pkg
 	Pkg.activate("")
+
+	using Flux, CUDA, MLDatasets, PlutoUI, CairoMakie, LinearAlgebra, FileIO
 
 	import Flux: DataLoader, onehotbatch, onecold, crossentropy
 	
