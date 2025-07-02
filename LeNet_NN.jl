@@ -18,14 +18,12 @@ end
 
 # ╔═╡ 793b0fa9-28f5-4916-9732-6d953d9aa22f
 begin
-	using Pkg
+	using Pkg, Flux, CUDA, MLDatasets, PlutoUI, CairoMakie, LinearAlgebra, FileIO
 	Pkg.activate("")
-	using Flux, CUDA, MLDatasets, PlutoUI, CairoMakie, LinearAlgebra, FileIO
 
 	import Flux: DataLoader, onehotbatch, onecold, crossentropy
 	
 	CairoMakie.activate!(; px_per_unit = 4)
-	
 	PlutoUI.TableOfContents()
 end
 
@@ -50,11 +48,11 @@ function getdata(datadir)
 
     # Loading Dataset	
 	xtrain, ytrain = MLDatasets.MNIST(Float32, dir=datadir, split=:train)[:]
-    xtest, ytest = MLDatasets.MNIST.(Float32, dir=datadir, split=:test)[:]
+    xtest, ytest = MLDatasets.MNIST(Float32, dir=datadir, split=:test)[:]
 	
     # Reshape Data in order to flatten each image into a linear array
-    xtrain = reshape(xtrain, 28,28,1,:) |> Flux.flatten #Flux Syntax to flatten
-	xtest = reshape(xtest, 28,28,1,:) |> Flux.flatten
+    xtrain = reshape(xtrain, 28,28,1,:) #|> Flux.flatten #Flux Syntax to flatten
+	xtest = reshape(xtest, 28,28,1,:) #|> Flux.flatten
 
     # One-hot-encode the labels
     ytrain, ytest = onehotbatch(ytrain, 0:9), onehotbatch(ytest, 0:9)
@@ -85,28 +83,6 @@ begin
 	fig
 end
 
-# ╔═╡ 9a2be92d-613e-4011-87ac-250bef01728b
-md"""
-## 2.1 Convolution 
-
-Goal for this part: (see (https://en.wikipedia.org/wiki/LeNet))
-
-Input - S4 Layer 
-
-"""
-
-# ╔═╡ 3e90ec8f-00db-4d21-b187-50f7c1702d7e
-# function build_LeNet (TODO)
-
-
-# C1 Convolution Layer (TODO)
-
-# S2 SubSampling Layer (TODO)
-
-# C3 Convolution Layer (TODO)
-
-# S4 SubSampling Layer (TODO)
-
 # ╔═╡ 89968d90-d65d-43c7-ba89-95da468628c5
 md"""
 ## 2.2 Building a model
@@ -132,12 +108,35 @@ $\mathbf{b}_2\in\mathbb{R}^{10}$.
 """
 
 # ╔═╡ 4cad4ec3-08d4-4b57-ba49-4a9a63d89aff
-function build_model_NN(; imgsize=(28,28,1), c6_hiddenlayer_units= 84, outputlayer_units= 10) 
+function build_model_NN() 
 	
     return Chain(
-				Dense(prod(imgsize), c6_hiddenlayer_units), #from R784 to R84
-				Dense(c6_hiddenlayer_units, outputlayer_units), #from R84 to R10
-				softmax
+		# C1 Convolution Layer: 28x28x1 (+2 padding) => 28x28x6
+		Conv((5, 5), 1=>6, pad=(2,2), relu),
+
+		# S2 Pooling Layer: 28x28x6 => 14x14x6
+		x -> maxpool(x, (2,2)),
+	
+		# C3 Convolution Layer: 14x14x6 => 10x10x16
+		Conv((5, 5), 6=>16, pad=(0,0), relu),
+
+		# S4 Pooling Layer: 10x10x16 => 5x5x16
+		x -> maxpool(x, (2,2)),
+	
+		# C3 Convolution Layer: 5x5x16 => 1x1x120
+		Conv((5, 5), 16=>120, pad=(0,0), relu),
+
+		# Reshape to (120, 128)
+		x -> reshape(x, :, size(x, 4)),
+	
+		# F6 Dense layer: 120 => 84
+		Dense(120, 84), relu, 	
+	
+		# Output Dense layer: 84 => 10
+		Dense(84, 10),	
+	
+		# Softmax to create a probability distribution
+		softmax
 	) 
 end
 
@@ -168,7 +167,7 @@ A simple way to perform optimization is to use stochastic gradient descent.
 """
 
 # ╔═╡ 4b9c3e33-43e4-45f1-b8bc-63c0236e9179
-opt = Descent(1e-3)
+opt = ADAM(1e-3)
 
 # ╔═╡ a24a2469-9081-459e-8382-5c8ea0d4a82e
 md"""
@@ -203,7 +202,7 @@ end
 
 # ╔═╡ 9eb390a8-6dbb-45de-80b0-fb5f072e66c9
 begin
-	device = cpu
+	device = gpu
 	model = build_model_NN() |> device
 	loss_history = train!(model, (xtrain, ytrain); epochs=20, device)
 end
@@ -231,7 +230,7 @@ Let us use our model to predict the labels of our test set
 """
 
 # ╔═╡ a8ca0f30-e936-45b2-9aad-8259a1ba9a72
-preds = onecold(model(xtest |> Flux.flatten |> device) |> cpu, 0:9)
+preds = onecold(model(xtest |> device) |> gpu, 0:9)
 
 # ╔═╡ 133db6fb-e7f8-4fa7-ad84-22a4fb5c818b
 @bind plotslice2 PlutoUI.Slider(1:div(size(ytest,2),12))
@@ -351,11 +350,25 @@ begin
 	
 	# Create an axis for the heatmap
 	ax5 = Axis(fig5[1, 1], 
-	          title = "Label = 1, Prediction = $(onecold(model(im0 |> Flux.flatten), 0:9)[1])", )
+	          title = "Label = 1, Prediction = $(onecold(model(im0), 0:9)[1])", )
 	hidedecorations!(ax5)
 	heatmap!(ax5,im0[:,end:-1:1,1,1], colormap = :grays, colorrange = (0, 1))
 	fig5
 end
+
+# ╔═╡ 31a2b5aa-3891-4be8-bf00-34bf1532ba5c
+html"""
+<style>
+@media screen {
+	main {
+		margin: 0 auto;
+		max-width: 100vw;
+		padding-left: 2%;
+		padding-right: 350px;
+	}
+}
+</style>
+"""
 
 # ╔═╡ Cell order:
 # ╟─4656940a-c9c7-11eb-186d-8bd3fedf80e2
@@ -366,12 +379,10 @@ end
 # ╟─abc054bc-2928-4088-8bfe-346724e6e36a
 # ╟─080667aa-0c5e-4c9a-89f8-90489b114d19
 # ╟─cde625f9-f6ca-48d7-ae31-4ec93bda748b
-# ╟─9a2be92d-613e-4011-87ac-250bef01728b
-# ╠═3e90ec8f-00db-4d21-b187-50f7c1702d7e
 # ╟─89968d90-d65d-43c7-ba89-95da468628c5
 # ╠═4cad4ec3-08d4-4b57-ba49-4a9a63d89aff
-# ╠═7be6f10f-8a32-4cca-922d-198e5e4efd71
-# ╠═94666008-bfa9-4b50-a84b-aa7d92e1a93f
+# ╟─7be6f10f-8a32-4cca-922d-198e5e4efd71
+# ╟─94666008-bfa9-4b50-a84b-aa7d92e1a93f
 # ╠═363f8093-4960-4c67-a444-fba097de2a13
 # ╟─13f609b2-c986-4494-bb08-72f5903c395e
 # ╠═4b9c3e33-43e4-45f1-b8bc-63c0236e9179
@@ -393,4 +404,5 @@ end
 # ╟─28fdfe13-3872-4dc6-8e6d-e7a20400a807
 # ╟─f70dd72a-6dca-4ee2-9af1-4b324c59c67b
 # ╠═5807261e-c5e0-4d50-8cc0-353583eab644
-# ╟─05e31b2a-0427-44a8-a4f0-85fb903f7cc8
+# ╠═05e31b2a-0427-44a8-a4f0-85fb903f7cc8
+# ╟─31a2b5aa-3891-4be8-bf00-34bf1532ba5c
