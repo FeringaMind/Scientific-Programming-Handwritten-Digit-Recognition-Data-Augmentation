@@ -135,9 +135,10 @@ $\mathbf{b}_2\in\mathbb{R}^{10}$.
 function build_model_NN(; imgsize=(28,28,1), c6_hiddenlayer_units= 84, outputlayer_units= 10) 
 	
     return Chain(
-			Chain(
 				Dense(prod(imgsize), c6_hiddenlayer_units), #from R784 to R84
-				Dense(c6_hiddenlayer_units, outputlayer_units), softmax)) #from R84 to R10
+				Dense(c6_hiddenlayer_units, outputlayer_units), #from R84 to R10
+				softmax
+	) 
 end
 
 # ╔═╡ 7be6f10f-8a32-4cca-922d-198e5e4efd71
