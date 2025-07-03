@@ -203,7 +203,7 @@ end
 begin
 	device = cpu
 	model = build_model_NN() |> device
-	loss_history = train!(model, (xtrain, ytrain); epochs=20, batchsize=32, settings_lambda=1e-4, settings_eta=1e-3)
+	loss_history = train!(model, (xtrain, ytrain); epochs=10, batchsize=128, settings_lambda=1e-4, settings_eta=1e-3)
 end
 
 # ╔═╡ 24223983-08b4-4966-a3aa-812b6fa2ccda
