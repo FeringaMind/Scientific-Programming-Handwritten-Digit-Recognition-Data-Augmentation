@@ -53,8 +53,8 @@ function getdata(datadir)
     xtest, ytest = MLDatasets.MNIST(Float32, dir=datadir, split=:test)[:]
 	
     # Reshape Data in order to flatten each image into a linear array
-    xtrain = reshape(xtrain, 28,28,1,:) #|> Flux.flatten #Flux Syntax to flatten
-	xtest = reshape(xtest, 28,28,1,:) #|> Flux.flatten
+    xtrain = reshape(xtrain, 28,28,1,:)
+	xtest = reshape(xtest, 28,28,1,:)
 
     # One-hot-encode the labels
     ytrain, ytest = onehotbatch(ytrain, 0:9), onehotbatch(ytest, 0:9)
@@ -113,29 +113,29 @@ $\mathbf{b}_2\in\mathbb{R}^{10}$.
 function build_model_NN() 
 	
     return Chain(
-		# C1 Convolution Layer: 28x28x1 (+2 padding) => 28x28x6
-		Conv((5, 5), 1=>6, pad=(2,2), relu),
+		# C1 Convolution Layer: 28x28x1 => 24x24x6
+		Conv((5, 5), 1=>6, relu),
 
-		# S2 Pooling Layer: 28x28x6 => 14x14x6
-		x -> maxpool(x, (2,2)),
+		# S2 Pooling Layer: 24x24x6 => 12x12x6
+		MaxPool((2,2)),
 	
-		# C3 Convolution Layer: 14x14x6 => 10x10x16
-		Conv((5, 5), 6=>16, pad=(0,0), relu),
+		# C3 Convolution Layer: 12x12x6 => 8x8x16
+		Conv((5, 5), 6=>16, relu),
 
-		# S4 Pooling Layer: 10x10x16 => 5x5x16
-		x -> maxpool(x, (2,2)),
-	
-		# C3 Convolution Layer: 5x5x16 => 1x1x120
-		Conv((5, 5), 16=>120, pad=(0,0), relu),
+		# S4 Pooling Layer: 8x8x16 => 4x4x16
+		MaxPool((2,2)),
 
-		# Reshape to (120, 128)
-		x -> reshape(x, :, size(x, 4)),
+		# Ready the S4 output for the last C layer (fully connected equivalent)
+		Flux.flatten,
 	
-		# F6 Dense layer: 120 => 84
-		Dense(120, 84), relu, 	
+		# C5 Convolution Layer / F5 Dense Layer: 4x4x16 / 256x1x1 => 120x1x1
+		Dense(256, 120, relu),
 	
-		# Output Dense layer: 84 => 10
-		Dense(84, 10),	
+		# F6 Dense layer: 120x1x1 => 84x1x1
+		Dense(120, 84, relu),
+	
+		# F7 / Output Dense layer: 84x1x1 => 10x1x1
+		Dense(84, 10),
 	
 		# Softmax to create a probability distribution
 		softmax
@@ -168,31 +168,28 @@ md"""
 A simple way to perform optimization is to use stochastic gradient descent.
 """
 
-# ╔═╡ 4b9c3e33-43e4-45f1-b8bc-63c0236e9179
-opt = ADAM(1e-3)
-
 # ╔═╡ a24a2469-9081-459e-8382-5c8ea0d4a82e
 md"""
 Having build our model and specified both loss function and optimizer let us now perform training
 """
 
 # ╔═╡ d1ee8eed-5a36-4050-a733-3455b16bb833
-function train!(model, data; epochs=100, batchsize=128, 
-				device=gpu, optimizer=Descent(1e-3))
+function train!(model, data; epochs=10, batchsize=32, settings_lambda=1e-2, settings_eta=3e-4)
 	
 	# setup data and model
 	train_loader = DataLoader(data, batchsize=batchsize, shuffle=true)
 	loss_function = crossentropy
-	opt_state = Flux.setup(optimizer, model)
+
+	opt_rule = OptimiserChain(WeightDecay(settings_lambda), ADAMW(settings_eta))
+	opt_state = Flux.setup(opt_rule, model)
 	
 	# perform training
 	loss_history = []
 	for epoch in 1:epochs
 		for xy_cpu in train_loader
-			x, y = xy_cpu |> device	# transfer data to device
+			x, y = xy_cpu |> cpu	# transfer data to device
 			loss, grads = Flux.withgradient(model) do m
-				y_hat = m(x)
-				loss_function(y_hat, y)
+				loss_function(m(x), y)
 			end
 			push!(loss_history, loss)
 			Flux.update!(opt_state, model, grads[1]) # update parameters pf model
@@ -204,9 +201,9 @@ end
 
 # ╔═╡ 9eb390a8-6dbb-45de-80b0-fb5f072e66c9
 begin
-	device = gpu
+	device = cpu
 	model = build_model_NN() |> device
-	loss_history = train!(model, (xtrain, ytrain); epochs=20, device)
+	loss_history = train!(model, (xtrain, ytrain); epochs=20, batchsize=32, settings_lambda=1e-4, settings_eta=1e-3)
 end
 
 # ╔═╡ 24223983-08b4-4966-a3aa-812b6fa2ccda
@@ -232,7 +229,7 @@ Let us use our model to predict the labels of our test set
 """
 
 # ╔═╡ a8ca0f30-e936-45b2-9aad-8259a1ba9a72
-preds = onecold(model(xtest |> device) |> gpu, 0:9)
+preds = onecold(model(xtest |> device) |> cpu, 0:9)
 
 # ╔═╡ 133db6fb-e7f8-4fa7-ad84-22a4fb5c818b
 @bind plotslice2 PlutoUI.Slider(1:div(size(ytest,2),12))
@@ -387,7 +384,6 @@ html"""
 # ╟─94666008-bfa9-4b50-a84b-aa7d92e1a93f
 # ╠═363f8093-4960-4c67-a444-fba097de2a13
 # ╟─13f609b2-c986-4494-bb08-72f5903c395e
-# ╠═4b9c3e33-43e4-45f1-b8bc-63c0236e9179
 # ╟─a24a2469-9081-459e-8382-5c8ea0d4a82e
 # ╠═d1ee8eed-5a36-4050-a733-3455b16bb833
 # ╠═9eb390a8-6dbb-45de-80b0-fb5f072e66c9
