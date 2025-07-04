@@ -1,6 +1,6 @@
 module LeNet5
     ### Usings & Imports
-    using Flux, MLDatasets, CairoMakie
+    using Flux, MLDatasets, CairoMakie, InteractiveUtils, Statistics
 
     ### Functions
     """
@@ -25,7 +25,7 @@ module LeNet5
             softmax                     # Softmax to create a probability distribution
         )
 
-        print("LeNet5: Created a model with $(sum(length,Flux.trainables(model))) parameters\n")
+        println("LeNet5: Created a model with $(sum(length,Flux.trainables(model))) parameters\n")
 
         return model
     end
@@ -59,8 +59,8 @@ module LeNet5
         train_size = size(xtrain)
         test_size = size(xtest)
 
-        print("Loaded $(train_size[end]) train images á $(train_size[1])x$(train_size[2])x$(train_size[3]) w/ labels\n")
-        print("Loaded $(test_size[end]) test images á $(test_size[1])x$(test_size[2])x$(test_size[3]) w/ labels\n")
+        println("Loaded $(train_size[end]) train images á $(train_size[1])x$(train_size[2])x$(train_size[3]) w/ labels")
+        println("Loaded $(test_size[end]) test images á $(test_size[1])x$(test_size[2])x$(test_size[3]) w/ labels\n")
 
         return xtrain, ytrain, xtest, ytest
     end
@@ -158,27 +158,59 @@ module LeNet5
     Returns:
         loss_history: The loss_history of the training
     """
-    function train!(model, data; epochs=10, batchsize=32, settings_lambda=1e-2, settings_eta=3e-4)
-        
+    function train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
         # setup data and model
+        xtrain, ytrain = data
         train_loader = Flux.DataLoader(data, batchsize=batchsize, shuffle=true)
         loss_function = Flux.crossentropy
 
-        opt_rule = OptimiserChain(WeightDecay(settings_lambda), ADAMW(settings_eta))
+        opt_rule = OptimiserChain(WeightDecay(lambda), ADAMW(eta))
         opt_state = Flux.setup(opt_rule, model)
+
+        width = displaysize(stdout)[2]  # columns (width of terminal)
+        println("Training for $(epochs) epochs on $(size(xtrain)[end]) images with batchsize $(batchsize) | λ=$(lambda), η=$(eta)")
         
         # perform training
         loss_history = []
+        time_history = []
+        actual = Flux.onecold(ytrain |> cpu, 0:9)
         for epoch in 1:epochs
-            for xy_cpu in train_loader
-                x, y = xy_cpu |> cpu	# transfer data to device
-                loss, grads = Flux.withgradient(model) do m
-                    loss_function(m(x), y)
+
+            println(repeat("-", width))
+            print("Epoch ($(epoch)/$(epochs))...")
+
+            epoch_loss_history = []
+
+            time_train = @elapsed begin
+                for xy_cpu in train_loader
+                    x, y = xy_cpu |> cpu	# transfer data to device
+                    loss, grads = Flux.withgradient(model) do m
+                        loss_function(m(x), y)
+                    end
+                    push!(loss_history, loss)
+                    push!(epoch_loss_history, loss)
+                    Flux.update!(opt_state, model, grads[1]) # update parameters pf model
                 end
-                push!(loss_history, loss)
-                Flux.update!(opt_state, model, grads[1]) # update parameters pf model
             end
+            push!(time_history, time_train)
+
+            y_hat = model(xtrain |> cpu) # get the models prediciton after training
+            preds = Flux.onecold(y_hat |> cpu, 0:9)
+            correct = count(preds .== actual)
+            total = length(actual)
+            acc = 100 * correct / total
+
+            println("trained for $(round(time_train, digits=3))s | reached $(round(mean(epoch_loss_history), digits=3)) loss with $(round(acc, digits=3))% accuracy")
         end
+
+        y_hat = model(xtrain |> cpu) # get the models prediciton after training
+        preds = Flux.onecold(y_hat |> cpu, 0:9)
+        correct = count(preds .== actual)
+        total = length(actual)
+        acc = 100 * correct / total
+
+        println(repeat("-", width))
+        println("Trained for a total of $(round(sum(time_history), digits=3))s | reached a $(round(loss_history[end], digits=3)) loss with $(round(acc, digits=3))% accuracy\n")
         
         return loss_history
     end
