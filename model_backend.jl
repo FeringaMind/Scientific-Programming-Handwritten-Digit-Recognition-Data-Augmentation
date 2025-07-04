@@ -12,7 +12,7 @@ module LeNet5
     The model consists of convolutional, pooling, dense layers, and a final softmax.
 
     Returns:
-        A `Chain` model from Flux representing the neural network.
+        model: A `Chain` model from Flux representing the neural network.
     """
     function createModel()
         model = Chain(
@@ -33,14 +33,17 @@ module LeNet5
     end
 
     """
-    getData()
+    getData(percent)
 
-    Returns the training and test data with labels and downloads the datasets if not already present
+    Gets the training and test data with labels and downloads the datasets if not already present
+
+    Takes:
+        percentage: percentage of training data to return. The test data stays at its original size (default=1)
 
     Returns:
-        A `xtrain, ytrain, xtest, ytest` where x is the data and y represents the labels.
+        xtrain, ytrain, xtest, ytest: x... is the data and y... represents the labels.
     """
-    function getData()
+    function getData(percentage=1)
         # Disable manual confirmation of dataset download
         ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 
@@ -64,22 +67,76 @@ module LeNet5
         return xtrain, ytrain, xtest, ytest
     end
 
-    function showImages(x_set, y_set)
-        ## ToDO
+    """
+    makeFigurePluto(x_size, y_size, x_set, y_set, plotslice)
+
+    Creates a figure w/ CairoMakie displayable in a Pluto Notebook
+
+    Takes:
+        x_size: size of the figure in x-direction
+        y_size: size of the figure in y-direction
+        x_set: the image set
+        y_set: the label set
+        plotslice: the slider input
+
+    Returns:
+        fig: The figure
+    """
+    function makeFigurePluto(x_size, y_size, x_set, y_set, plotslice)
+        indices = 12 * (plotslice - 1) + 1 : 12 * plotslice
+	    fig = Figure(size = (x_size, y_size), fontsize=20)
+	    for (i, idx) in enumerate(indices)
+	        ax = Axis(fig[(i-1)÷4+1, (i-1)%4+1], title = "label=$(onecold(y_set[:, idx], 0:9))")
+		    hidedecorations!(ax)
+	        heatmap!(ax, reshape(x_set, 28,28,1,:)[:,end:-1:1,1,idx], colormap = :grays, colorrange = (0, 1))
+	    end
+	    return fig
+    end
+
+    """
+    train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
+
+    Trains the model with the input parameters
+
+    Takes:
+        model: The model to be trained (created by createModel())
+        data: The data to train the model with (created by getData())
+        epochs: The number of epochs to train (default=10)
+        batchsize: The batchsize to be used during training (default=32)
+        lambda: The weight decay (default=1e-2)
+        eta: The learning rate (default=3e-4)
+
+    Returns:
+        loss_history: The loss_history of the training
+    """
+    function train!(model, data; epochs=10, batchsize=32, settings_lambda=1e-2, settings_eta=3e-4)
+        
+        # setup data and model
+        train_loader = DataLoader(data, batchsize=batchsize, shuffle=true)
+        loss_function = crossentropy
+
+        opt_rule = OptimiserChain(WeightDecay(settings_lambda), ADAMW(settings_eta))
+        opt_state = Flux.setup(opt_rule, model)
+        
+        # perform training
+        loss_history = []
+        for epoch in 1:epochs
+            for xy_cpu in train_loader
+                x, y = xy_cpu |> cpu	# transfer data to device
+                loss, grads = Flux.withgradient(model) do m
+                    loss_function(m(x), y)
+                end
+                push!(loss_history, loss)
+                Flux.update!(opt_state, model, grads[1]) # update parameters pf model
+            end
+        end
+        
+        return loss_history
     end
 
     ### Exports
     export createModel
     export getData
-    export showImages
+    export makeFigurePluto
+    export train!
 end
-
-### Main Test
-
-model = LeNet5.createModel();
-xtrain, ytrain, xtest, ytest = LeNet5.getData();
-fig_train = LeNet5.showImages(xtrain, ytrain)
-fig_test = LeNet5.showImages(xtest,ytest)
-
-display(fig_train)
-nothing
