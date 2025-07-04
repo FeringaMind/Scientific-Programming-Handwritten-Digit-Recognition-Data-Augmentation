@@ -1,8 +1,6 @@
 module LeNet5
     ### Usings & Imports
-    using Flux, MLDatasets, GLMakie, InteractiveUtils, Statistics
-
-    GLMakie.activate!(inline=false)
+    using Flux, MLDatasets, CairoMakie, InteractiveUtils, Statistics
 
     ### Functions
     """
@@ -68,7 +66,7 @@ module LeNet5
     end
 
     """
-    makeFigurePluto(x_size, y_size, x_set, y_set, plotslice)
+    makeFigurePluto_Images(x_size, y_size, x_set, y_set, plotslice)
 
     Creates a figure w/ CairoMakie displayable in a Pluto Notebook
 
@@ -82,7 +80,7 @@ module LeNet5
     Returns:
         fig: The figure
     """
-    function makeFigurePluto(x_size, y_size, x_set, y_set, plotslice)
+    function makeFigurePluto_Images(x_size, y_size, x_set, y_set, plotslice)
         indices = 12 * (plotslice - 1) + 1 : 12 * plotslice
 	    fig = Figure(size = (x_size, y_size), fontsize=20)
 	    for (i, idx) in enumerate(indices)
@@ -92,6 +90,57 @@ module LeNet5
 	    end
 	    return fig
     end
+
+    """
+    makeFigurePluto_ConfusionMatrix(y_hat,y)
+
+    #todo 
+
+    Takes:
+        y_hat:
+        y:
+        x_size: size of the figure in x-direction
+        y_size: size of the figure in y-direction
+
+    Returns:
+        fig: the figure
+
+    """
+
+    function makeFigurePluto_ConfusionMatrix(y_hat, y; x_size=600, y_size=600)
+
+        confMat = zeros(Float64, (10,10))
+        for i=0:9, j=0:9
+            confMat[i+1,j+1] = sum((y_hat .== i) .&& (y .== j))
+        end
+        
+        confMat = confusionMatrix(preds, onecold(ytest, 0:9))
+
+        # Create a figure
+        fig = Figure(size = (x_size, y_size))
+        
+        # Create an axis for the heatmap
+        ax = Axis(fig[1, 1], 
+                title = "Confusion Matrix", 
+                xlabel = "predicted digit", 
+                ylabel = "true digit", 
+                xticks = 0:9, 
+                yticks = 0:9)
+        
+        # Plot the heatmap
+        hm = heatmap!(ax, 0:9, 0:9, confMat, colormap = :viridis)
+        
+        # Annotate the heatmap
+        for i in 0:9
+            for j in 0:9
+                text!(ax, i, j, text = string(Int(confMat[i+1, j+1])), align = (:center, :center), color = :gray, fontsize = 20)
+            end
+        end
+        Colorbar(fig[1, 2], hm)
+
+        return fig
+    end
+
 
     """
     train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
@@ -166,14 +215,43 @@ module LeNet5
         return loss_history
     end
 
+
+    """
+    test(model, data,)
+
+    tests the model, the model classifies test data
+
+    Takes:
+        model: The model to be trained (created by createModel())
+        data: The data to train the model with (created by getData())
+
+    Returns:
+        predictions: the class predictions of the model
+    """
+    function test(model, data;)
+
+        (xtest, ytest) = data
+
+        #yhat is the output of the model (probability distribution)
+        y_hat = model(xtest |> cpu)
+
+        # onecold turns the probability distribution of the model into the number classes
+        preds = Flux.onecold( y_hat |> cpu, 0:9)
+
+        return preds
+    end
+
+    """
+    accuracy()
+    #todo
+    """
+    # todo function accuracy(preds, )
+
     ### Exports
     export createModel
     export getData
-    export makeFigurePluto
+    export makeFigurePluto_Images
+    export makeFigurePluto_ConfusionMatrix
     export train!
+    export test
 end
-
-model = LeNet5.createModel()
-xtrain, ytrain, ytest, ytest = LeNet5.getData()
-loss_history = LeNet5.train!(model, (xtrain, ytrain));
-nothing
