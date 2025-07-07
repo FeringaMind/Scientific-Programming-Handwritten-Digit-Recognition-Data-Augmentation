@@ -242,11 +242,48 @@ module LeNet5
     end
 
     """
-    accuracy()
-    #todo
-    """
-    # todo function accuracy(preds, )
+    accuracy_per_class(preds, labels)
 
+    Calculates the classification accuracy per digit.
+
+    Takes:
+        preds: predicted class labels (vector of Ints)
+        labels: true class labels (vector of Ints)
+
+    Returns:
+        Dict mapping digit => accuracy
+    """
+    function accuracy_per_class(preds::Vector{Int}, labels::Vector{Int})
+        class_accuracies = Dict{Int, Tuple{Float64, Int}}() # empty dictionary to store accuracy per digit
+        for digit in 0:9
+            mask = labels .== digit # boolean mask where the true label matches the current digit
+            total = count(mask) # Count the times this digit appears in the true labels
+            correct = count(preds[mask] .== digit)  # count correct predictions
+            class_accuracies[digit] = ((total == 0 ? 0.0 : correct / total * 100), total) # adding 0.0 accuracy if digit not in data, else compute percentage accuracy
+        end
+        return class_accuracies
+    end
+
+    """
+    overall_accuracy(preds, labels)
+
+    Calculates the total classification accuracy (in %).
+
+    Takes:
+        preds: predicted class labels (vector of Ints)
+        labels: true class labels (vector of Ints)
+
+    Returns:
+        accuracy: overall accuracy as a Float64 percentage
+    """
+    function overall_accuracy(preds::Vector{Int}, labels::Vector{Int})
+        correct = count(preds .== labels) # count number of correct predictions
+        return correct / length(labels) * 100 # compute percentage of accuracy of correct predictions
+    end
+
+    
+    # todo function accuracy(preds, )
+    
     ### Exports
     export createModel
     export getData
@@ -254,4 +291,6 @@ module LeNet5
     export makeFigurePluto_ConfusionMatrix
     export train!
     export test
+    export overall_accuracy
+    export accuracy_per_class
 end
