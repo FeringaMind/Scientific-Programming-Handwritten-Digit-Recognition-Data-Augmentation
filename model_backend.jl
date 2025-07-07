@@ -1,6 +1,6 @@
 module LeNet5
     ### Usings & Imports
-    using Flux, MLDatasets, CairoMakie, InteractiveUtils, Statistics
+    using Flux, MLDatasets, CairoMakie, InteractiveUtils, Statistics, Random
 
     ### Functions
     """
@@ -41,14 +41,38 @@ module LeNet5
     Returns:
         xtrain, ytrain, xtest, ytest: x... is the data and y... represents the labels.
     """
-    function getData(percentage=1)
+    function getData(;percentage=69)
         # Disable manual confirmation of dataset download
         ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 
+
         # Loading Dataset	
-        xtrain, ytrain = MLDatasets.MNIST(Float32, dir="mnist_data", split=:train)[:]
+        xtrain_raw, ytrain_raw = MLDatasets.MNIST(Float32, dir="mnist_data", split=:train)[:]
         xtest, ytest = MLDatasets.MNIST(Float32, dir="mnist_data", split=:test)[:]
         
+        println(size(ytrain_raw))
+
+        # Filtering train data: Images per label
+        count = 1
+        xtrain = zeros(Float32, 28, 28, floor(Int, 60000*(percentage/100)))
+        ytrain = zeros(Float32, floor(Int, 60000*(percentage/100)))
+
+        for label in 0:9
+            inds = findall(ytrain_raw .== label)
+            inds = Random.shuffle(inds) #shuffling for a randomized training set
+
+            for i in inds[1:(floor(Int,(percentage/100)*(length(inds))))] 
+                xtrain[:,:,count] = xtrain_raw[:,:,i]
+                ytrain[count] = ytrain_raw[i]
+                count += 1
+            end
+            println(length(1:floor(Int,(percentage/100)*(length(inds)))))
+        end
+
+        #Todo Fix numbers not adding up (Issue)
+
+        #println(size(xtrain))
+
         # Reshape Data in order to flatten each image into a linear array
         xtrain = reshape(xtrain, 28,28,1,:)
         xtest = reshape(xtest, 28,28,1,:)
@@ -59,8 +83,11 @@ module LeNet5
         train_size = size(xtrain)
         test_size = size(xtest)
 
-        println("Loaded $(train_size[end]) train images á $(train_size[1])x$(train_size[2])x$(train_size[3]) w/ labels")
-        println("Loaded $(test_size[end]) test images á $(test_size[1])x$(test_size[2])x$(test_size[3]) w/ labels\n")
+        #println("Loaded $(train_size[end]) train images á $(train_size[1])x$(train_size[2])x$(train_size[3]) w/ labels")
+        #println("Loaded $(test_size[end]) test images á $(test_size[1])x$(test_size[2])x$(test_size[3]) w/ labels\n")
+
+        #train_data = Dict(:x => xtrain, :y => ytrain)
+        #test_data  = Dict(:x => xtest, :y => ytest)
 
         return xtrain, ytrain, xtest, ytest
     end
@@ -158,7 +185,10 @@ module LeNet5
     Returns:
         loss_history: The loss_history of the training
     """
+    # data = (train_data[:x], train_data[:y])
+
     function train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
+
         # setup data and model
         xtrain, ytrain = data
         train_loader = Flux.DataLoader(data, batchsize=batchsize, shuffle=true)
