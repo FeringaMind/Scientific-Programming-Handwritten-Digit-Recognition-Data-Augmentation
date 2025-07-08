@@ -2,6 +2,8 @@ module LeNet5
     ### Usings & Imports
     using Flux, MLDatasets, CairoMakie, InteractiveUtils, Statistics, Random
 
+    import Flux
+
     ### Functions
     """
     createModel()
@@ -41,67 +43,41 @@ module LeNet5
     Returns:
         xtrain, ytrain, xtest, ytest: x... is the data and y... represents the labels.
     """
-    function getData_train(;percentage=100)
+    function getData_train(;percentage=10000)
         # Disable manual confirmation of dataset download
         ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 
 
         # Loading Dataset	
         xtrain_raw, ytrain_raw = MLDatasets.MNIST(Float32, dir="mnist_data", split=:train)[:]
-        
-        println(size(ytrain_raw))
 
         # Filtering train data: Images per label
         count = 1
-        xtrain = zeros(Float32, 28, 28, ceil(Int, 60000*(percentage/100)))
-        ytrain = zeros(Float32, ceil(Int, 60000*(percentage/100)))
+        xtrain = zeros(Float32, 28, 28, ceil(Int, 60000*(percentage/10000)))
+        ytrain = zeros(Float32, ceil(Int, 60000*(percentage/10000)))
 
-        println(size(xtrain))
-        println(size(ytrain))
-
-        #for testing
         actual_amount = 0
 
         for label in 0:9
             inds = findall(ytrain_raw .== label)
             inds = Random.shuffle(inds) #shuffling for a randomized training set
 
-            for i in inds[1:(floor(Int,(percentage/100)*(length(inds))))] 
+            for i in inds[1:(floor(Int,(percentage/10000)*(length(inds))))] 
                 xtrain[:,:,count] = xtrain_raw[:,:,i]
                 ytrain[count] = ytrain_raw[i]
                 count += 1
             end
-            println(length(1:floor(Int,(percentage/100)*(length(inds)))))
-            #for testing
-            actual_amount += length(1:floor(Int,(percentage/100)*(length(inds))))
-            #println(size(inds))
+            actual_amount += length(1:floor(Int,(percentage/10000)*(length(inds))))
         end
 
-        println(actual_amount)
-
-        xtrain = xtrain[:, :, 1:end-(ceil(Int, 60000*(percentage/100))-(actual_amount))]
-        ytrain = ytrain[1:end-(ceil(Int, 60000*(percentage/100))-(actual_amount))]
+        xtrain = xtrain[:, :, 1:end-(ceil(Int, 60000*(percentage/10000))-(actual_amount))]
+        ytrain = ytrain[1:end-(ceil(Int, 60000*(percentage/10000))-(actual_amount))]
         
-
-        #Todo Fix numbers not adding up (Issue)
-
-        println(size(xtrain))
-        println(size(ytrain))
-
         # Reshape Data in order to flatten each image into a linear array
         xtrain = reshape(xtrain, 28,28,1,:)
 
         # One-hot-encode the labels
         ytrain = Flux.onehotbatch(ytrain, 0:9)
-
-        #train_size = size(xtrain)
-        #test_size = size(xtest)
-
-        #println("Loaded $(train_size[end]) train images á $(train_size[1])x$(train_size[2])x$(train_size[3]) w/ labels")
-        #println("Loaded $(test_size[end]) test images á $(test_size[1])x$(test_size[2])x$(test_size[3]) w/ labels\n")
-
-        #train_data = Dict(:x => xtrain, :y => ytrain)
-        #test_data  = Dict(:x => xtest, :y => ytest)
 
         return xtrain, ytrain
     end

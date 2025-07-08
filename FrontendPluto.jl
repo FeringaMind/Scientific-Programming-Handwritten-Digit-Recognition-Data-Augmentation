@@ -21,11 +21,15 @@ begin
 	using Pkg
 	Pkg.activate("")
 
-	using Flux, CUDA, MLDatasets, PlutoUI, CairoMakie, LinearAlgebra, FileIO
+	#using Flux, CUDA, MLDatasets, PlutoUI, CairoMakie, LinearAlgebra, FileIO
 
-	import Flux: DataLoader, onehotbatch, onecold, crossentropy
+	#import Flux: DataLoader, onehotbatch, onecold, crossentropy
+
+	include("model_backend.jl")
+	using .LeNet5, PlutoUI, Flux
+	import Flux: onecold
 	
-	CairoMakie.activate!(; px_per_unit = 4)
+	#CairoMakie.activate!(; px_per_unit = 4)
 	PlutoUI.TableOfContents()
 end
 
@@ -49,27 +53,21 @@ We start with loading the training and test data from the MNIST dataset, a colle
 
 """
 
-# ╔═╡ d9cc6072-6342-4968-914c-6070d5d2fd9d
-function getdata(datadir)
-    # Automatically accept dataset download prompts
-    ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
+# ╔═╡ 4bd85dd1-6661-4c23-a1c9-389da49187e8
+begin
+	datasets = []
+	for i in 2:20:102 # 0.0001 no worki
+		println(i)
+	    data = LeNet5.getData_train(; percentage = i)
+		@show size(data[1]), size(data[2])
+		#@show Flux.onecold(data[2], 0:9)
+		push!(datasets, data)
+	end
 
-    # Load MNIST training and test data
-    xtrain, ytrain = MLDatasets.MNIST(Float32, dir=datadir, split=:train)[:]
-    xtest, ytest = MLDatasets.MNIST(Float32, dir=datadir, split=:test)[:]
-
-    # Reshape Data in order to flatten each image into a linear array for CNN input
-    xtrain = reshape(xtrain, 28, 28, 1, :)
-    xtest = reshape(xtest, 28, 28, 1, :)
-
-    # Convert labels to one-hot vectors (length 10)
-    ytrain, ytest = onehotbatch(ytrain, 0:9), onehotbatch(ytest, 0:9)
-
-    return xtrain, ytrain, xtest, ytest
+	for d in datasets
+		@show size(d[1]), size(d[2])[2]
+	end
 end
-
-# ╔═╡ 9bce1678-a373-4852-8b9c-5bfc02995536
-xtrain, ytrain, xtest, ytest = getdata("mnist_data")
 
 # ╔═╡ 64fdd548-0994-4ccb-8a91-dc394f478926
 md"""
@@ -79,9 +77,10 @@ The labels are represented using one-hot encoding: a binary vector of length 10,
 """
 
 # ╔═╡ 307a953f-69ac-4502-966a-922ef8a0856e
-@bind plotslice PlutoUI.Slider(1:div(size(ytest,2),12))
+# @bind plotslice PlutoUI.Slider(1:div(size(ytest,2),12))
 
 # ╔═╡ 01098daa-5bf5-46af-8c99-cbeb6a9efd42
+#=
 begin
 	indices = 12 * (plotslice - 1) + 1 : 12 * plotslice
 	fig = Figure(size = (800, 600), fontsize=20)
@@ -92,11 +91,22 @@ begin
 	end
 	fig
 end
+=#
 
 # ╔═╡ 94da4f46-f348-4148-b7c5-7e01b901f356
 md"""
 ## 2. LeNet-Based Convolutional Neural Network
 """
+
+# ╔═╡ 0eac6cee-8cae-430b-9131-779f717118bc
+begin 
+	models = []
+	for i in 1:length(datasets)
+		println(i)
+	    model = LeNet5.createModel()
+		push!(models, (model, size(datasets[i][2])[2]))
+	end
+end
 
 # ╔═╡ 69ae3d42-9d1b-4393-9b88-9a3930b03ac9
 md"""
@@ -109,39 +119,6 @@ where the input vector $x \in \mathbb{R}^{784}$ is the flattened image (28 × 28
 
 The model is constructed using the Flux.Chain function, which sequentially applies the listed layers to the input. The Dense layers represent fully connected layers, while Conv and MaxPool handle the convolutional and downsampling operations.
 """
-
-# ╔═╡ 40da0f94-d996-426c-8070-130e57a033e8
-function build_model_NN() 
-	
-    return Chain(
-		# C1 Convolution Layer: 28x28x1 => 24x24x6
-		Conv((5, 5), 1=>6, relu),
-
-		# S2 Pooling Layer: 24x24x6 => 12x12x6
-		MaxPool((2,2)),
-	
-		# C3 Convolution Layer: 12x12x6 => 8x8x16
-		Conv((5, 5), 6=>16, relu),
-
-		# S4 Pooling Layer: 8x8x16 => 4x4x16
-		MaxPool((2,2)),
-
-		# Ready the S4 output for the last C layer (fully connected equivalent)
-		Flux.flatten,
-	
-		# C5 Convolution Layer / F5 Dense Layer: 4x4x16 / 256x1x1 => 120x1x1
-		Dense(256, 120, relu),
-	
-		# F6 Dense layer: 120x1x1 => 84x1x1
-		Dense(120, 84, relu),
-	
-		# F7 / Output Dense layer: 84x1x1 => 10x1x1
-		Dense(84, 10),
-	
-		# Softmax to create a probability distribution
-		softmax
-	) 
-end
 
 # ╔═╡ 4016bf0e-e127-46ed-bd57-74d6e46866b3
 md"""
@@ -174,13 +151,17 @@ With the model architecture in place, we now train the convolutional neural netw
 For this task, we employ the cross-entropy loss function, which is commonly used for multi-class classification problems. Let $\hat{\mathbf{y}}_{i}$ denote the predicted probability distribution for the i-th sample, and $\mathbf{y}_{i}$ the corresponding one-hot encoded ground truth label. The cross-entropy loss over a batch $\mathbb{N}$ of samples is defined as:
 """
 
+# ╔═╡ 0b03cfae-62dd-4f99-9f2b-051b18f98adb
+begin
+	for i in 1:length(models)
+		LeNet5.train!(models[i][1],datasets[i];batchsize=2)
+	end
+end
+
 # ╔═╡ fe56b42b-28db-4dfc-84d6-1d4e80c6aaa0
 md"""
 $-\frac{1}{N} \sum_{i=1}^{N} y_i \cdot \log(\hat{y}_i)$
 """
-
-# ╔═╡ 9f921e28-1679-474b-a6ee-32ab2fa9367f
-loss = crossentropy
 
 # ╔═╡ 83d17c51-34d2-4cc1-95b0-0a405c9f1499
 md"""
@@ -198,45 +179,13 @@ The training loop proceeds over a specified number of epochs. In each epoch, the
 The loss value at each step is recorded to monitor training progress.
 """
 
-# ╔═╡ b8524326-bf23-42b4-9394-2d526ccc180f
-function train!(model, data; epochs=10, batchsize=32, settings_lambda=1e-2, settings_eta=3e-4)
-	
-	# setup data and model
-	train_loader = DataLoader(data, batchsize=batchsize, shuffle=true)
-	loss_function = crossentropy
-
-	opt_rule = OptimiserChain(WeightDecay(settings_lambda), ADAMW(settings_eta))
-	opt_state = Flux.setup(opt_rule, model)
-	
-	# perform training
-	loss_history = []
-	for epoch in 1:epochs
-		for xy_cpu in train_loader
-			x, y = xy_cpu |> cpu	# transfer data to device
-			loss, grads = Flux.withgradient(model) do m
-				loss_function(m(x), y)
-			end
-			push!(loss_history, loss)
-			Flux.update!(opt_state, model, grads[1]) # update parameters pf model
-		end
-	end
-	
-	return loss_history
-end
-
 # ╔═╡ 3f93e564-f110-40db-85ee-58bfd31c791e
 md"""
 The following block initializes the model and runs the training procedure for 20 epochs with a batch size of 32:
 """
 
-# ╔═╡ 701d79bf-df7a-4d36-b050-b92d47522c37
-begin
-	device = cpu
-	model = build_model_NN() |> device
-	loss_history = train!(model, (xtrain, ytrain); epochs=20, batchsize=32, settings_lambda=1e-4, settings_eta=1e-3)
-end
-
 # ╔═╡ 64c2570c-b055-4c8f-bb97-df17e0adaef4
+#=
 begin
 	fig4 = Figure(size=(450,450))
 	ax = CairoMakie.Axis(
@@ -250,6 +199,7 @@ begin
 	p = lines!(ax, loss_history)
 	fig4
 end
+=#
 
 # ╔═╡ dc63e616-488b-45de-b8c3-5449c1a58267
 md"""
@@ -262,11 +212,27 @@ md"""
 To evaluate the trained model, we apply it to the MNIST test set and generate predictions. The model outputs a probability distribution over the 10 digit classes for each image, and we select the most likely class using onecold:
 """
 
-# ╔═╡ 15f16305-1c81-470e-8d80-854b8842d038
-preds = onecold(model(xtest |> device) |> cpu, 0:9)
+# ╔═╡ 8e599299-03b4-4b45-b5c0-07e3beb603e4
+begin	
+	testingData = LeNet5.getData_test()
+	ycold = Flux.onecold(testingData[2], 0:9)
+	
+	for i in 1:length(models)
+		pred = LeNet5.test(models[i][1], testingData;)
+		acc = LeNet5.overall_accuracy(pred, ycold)
+		println("T_Acc: $(acc) for $(models[i][2]) training images")
+		accN = LeNet5.accuracy_per_class(pred, ycold)
+		v = Float32[]
+		for (key, val) in accN
+			println("     Num: $(key) -> Acc: $(round(val[1], digits=2)) for $(val[2])")
+			push!(v, val[1])
+		end
+		println("     $(round(maximum(v)- minimum(v), digits=2))")
+	end
+end
 
 # ╔═╡ 233b873b-d5bb-49cd-a432-6be2be754387
-@bind plotslice2 PlutoUI.Slider(1:div(size(ytest,2),12))
+# @bind plotslice2 PlutoUI.Slider(1:div(size(ytest,2),12))
 
 # ╔═╡ 3e4013a4-dc76-4715-8e51-12cd24c48949
 md"""
@@ -274,6 +240,7 @@ We visualize a selection of 12 test images along with their predicted labels. Ea
 """
 
 # ╔═╡ 3aea78df-5212-4ae8-8c67-6406d8c20591
+#=
 begin
 	indices2 = 12 * (plotslice2 - 1) + 1 : 12 * plotslice2
 	fig2 = Figure(size = (800, 600), fontsize=20)
@@ -284,6 +251,7 @@ begin
 	end
 	fig2
 end
+=#
 
 # ╔═╡ 30d0da08-634b-4334-ac8a-fc1eefeac7da
 md"""
@@ -314,6 +282,9 @@ The function below computes the confusion matrix by counting how often a true cl
 """
 
 # ╔═╡ 31a24ffb-ae44-4f04-ae42-0dee10b2d667
+# ╠═╡ disabled = true
+#=╠═╡
+#=
 begin
 	function confusionMatrix(ŷ, y)
 			confMat = zeros(Float64, (10,10))
@@ -325,6 +296,8 @@ begin
 	
 	confMat = confusionMatrix(preds, onecold(ytest, 0:9))
 end;
+=#
+  ╠═╡ =#
 
 # ╔═╡ db1f1008-27d5-4d35-ac06-05e61f86f692
 md"""
@@ -332,6 +305,9 @@ We then visualize the matrix as a heatmap, with annotations to indicate the numb
 """
 
 # ╔═╡ 927bb052-d335-447b-9dc6-634f610a322a
+# ╠═╡ disabled = true
+#=╠═╡
+#=
 begin
 	# Create a figure
 	fig3 = Figure(size = (600, 600))
@@ -356,6 +332,8 @@ begin
 	Colorbar(fig3[1, 2], hm)
 	fig3
 end
+=#
+  ╠═╡ =#
 
 # ╔═╡ 350cc27f-995b-4064-9bfa-de0a3ea05ac1
 md"""
@@ -363,7 +341,7 @@ From the confusion matrix, we observe that the model correctly classifies most d
 """
 
 # ╔═╡ 21bc1b1b-3319-443b-9401-4a4c5cba6e4f
-accuracy = tr(confMat) / sum(confMat)
+# accuracy = tr(confMat) / sum(confMat)
 
 # ╔═╡ c6248257-45d3-4614-bbe0-f9d7938378ff
 md"""
@@ -384,6 +362,7 @@ The following example illustrates a simple form of augmentation by adding random
 """
 
 # ╔═╡ 1e4ae0e7-5c65-4cd7-9f53-0708a8e40351
+#=
 begin
 	fig6 = Figure(size=(900,300))
 	ax61 = CairoMakie.Axis(fig6[1,1]; title="Original")
@@ -396,6 +375,7 @@ begin
 	heatmap!(ax63, (clamp.(reshape(xtrain, 28,28,1,:)[:,:,1,1] + _noise, 0.0f0, 1.0f0))[:,end:-1:1], colormap=:grays)
 	fig6
 end
+=#
 
 # ╔═╡ 8020da41-767d-402e-8cd9-c3c593cd7ee9
 md"""
@@ -413,9 +393,13 @@ Such shifts are common in deployment scenarios and can severely affect model rel
 """
 
 # ╔═╡ fdd7faa3-8427-4486-af48-a1bb2fed758a
-im0 = reshape(Float32.(load("testImage.png")) |> transpose, 28,28,1,:);
+# ╠═╡ disabled = true
+#=╠═╡
+#im0 = reshape(Float32.(load("testImage.png")) |> transpose, 28,28,1,:);
+  ╠═╡ =#
 
 # ╔═╡ f90ab7e0-1554-463b-8545-870f6f6d469d
+#=
 begin
 	fig5 = Figure(size = (450, 450))
 	
@@ -426,6 +410,7 @@ begin
 	heatmap!(ax5,im0[:,end:-1:1,1,1], colormap = :grays, colorrange = (0, 1))
 	fig5
 end
+=#
 
 # ╔═╡ 79af0a3c-70c1-4663-a9ef-4e848d01e65d
 md"""
@@ -450,28 +435,25 @@ html"""
 # ╟─8cb672c0-5358-11f0-16ec-75bbd3266681
 # ╠═ba491ad9-0c09-44a3-ab98-21919da7c62e
 # ╟─8c7603fa-07a7-4435-b80b-562f7ada38ee
-# ╠═d9cc6072-6342-4968-914c-6070d5d2fd9d
-# ╠═9bce1678-a373-4852-8b9c-5bfc02995536
+# ╠═4bd85dd1-6661-4c23-a1c9-389da49187e8
 # ╟─64fdd548-0994-4ccb-8a91-dc394f478926
 # ╟─307a953f-69ac-4502-966a-922ef8a0856e
 # ╟─01098daa-5bf5-46af-8c99-cbeb6a9efd42
-# ╠═94da4f46-f348-4148-b7c5-7e01b901f356
+# ╟─94da4f46-f348-4148-b7c5-7e01b901f356
+# ╠═0eac6cee-8cae-430b-9131-779f717118bc
 # ╟─69ae3d42-9d1b-4393-9b88-9a3930b03ac9
-# ╠═40da0f94-d996-426c-8070-130e57a033e8
 # ╟─4016bf0e-e127-46ed-bd57-74d6e46866b3
 # ╟─d28a4019-56f3-451b-8d86-676e410c9113
 # ╟─299f8e36-41ab-4536-91d8-5d4cac16aecb
 # ╟─06baaad7-d8b2-4a51-8421-2f8d1a8ae70b
+# ╠═0b03cfae-62dd-4f99-9f2b-051b18f98adb
 # ╟─fe56b42b-28db-4dfc-84d6-1d4e80c6aaa0
-# ╠═9f921e28-1679-474b-a6ee-32ab2fa9367f
 # ╟─83d17c51-34d2-4cc1-95b0-0a405c9f1499
-# ╠═b8524326-bf23-42b4-9394-2d526ccc180f
 # ╟─3f93e564-f110-40db-85ee-58bfd31c791e
-# ╠═701d79bf-df7a-4d36-b050-b92d47522c37
 # ╟─64c2570c-b055-4c8f-bb97-df17e0adaef4
 # ╟─dc63e616-488b-45de-b8c3-5449c1a58267
 # ╟─917fa567-43b4-4a5a-a7dd-52de16e4651f
-# ╠═15f16305-1c81-470e-8d80-854b8842d038
+# ╠═8e599299-03b4-4b45-b5c0-07e3beb603e4
 # ╟─233b873b-d5bb-49cd-a432-6be2be754387
 # ╟─3e4013a4-dc76-4715-8e51-12cd24c48949
 # ╟─3aea78df-5212-4ae8-8c67-6406d8c20591
@@ -480,7 +462,7 @@ html"""
 # ╟─d183f9cc-a22f-487b-99ae-e8b60166e4b6
 # ╠═31a24ffb-ae44-4f04-ae42-0dee10b2d667
 # ╟─db1f1008-27d5-4d35-ac06-05e61f86f692
-# ╟─927bb052-d335-447b-9dc6-634f610a322a
+# ╠═927bb052-d335-447b-9dc6-634f610a322a
 # ╟─350cc27f-995b-4064-9bfa-de0a3ea05ac1
 # ╠═21bc1b1b-3319-443b-9401-4a4c5cba6e4f
 # ╟─c6248257-45d3-4614-bbe0-f9d7938378ff
