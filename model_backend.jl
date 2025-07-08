@@ -41,14 +41,13 @@ module LeNet5
     Returns:
         xtrain, ytrain, xtest, ytest: x... is the data and y... represents the labels.
     """
-    function getData(;percentage=100)
+    function getData_train(;percentage=100)
         # Disable manual confirmation of dataset download
         ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 
 
         # Loading Dataset	
         xtrain_raw, ytrain_raw = MLDatasets.MNIST(Float32, dir="mnist_data", split=:train)[:]
-        xtest, ytest = MLDatasets.MNIST(Float32, dir="mnist_data", split=:test)[:]
         
         println(size(ytrain_raw))
 
@@ -91,13 +90,12 @@ module LeNet5
 
         # Reshape Data in order to flatten each image into a linear array
         xtrain = reshape(xtrain, 28,28,1,:)
-        xtest = reshape(xtest, 28,28,1,:)
 
         # One-hot-encode the labels
-        ytrain, ytest = Flux.onehotbatch(ytrain, 0:9), Flux.onehotbatch(ytest, 0:9)
+        ytrain = Flux.onehotbatch(ytrain, 0:9)
 
-        train_size = size(xtrain)
-        test_size = size(xtest)
+        #train_size = size(xtrain)
+        #test_size = size(xtest)
 
         #println("Loaded $(train_size[end]) train images á $(train_size[1])x$(train_size[2])x$(train_size[3]) w/ labels")
         #println("Loaded $(test_size[end]) test images á $(test_size[1])x$(test_size[2])x$(test_size[3]) w/ labels\n")
@@ -105,7 +103,22 @@ module LeNet5
         #train_data = Dict(:x => xtrain, :y => ytrain)
         #test_data  = Dict(:x => xtest, :y => ytest)
 
-        return xtrain, ytrain, xtest, ytest
+        return xtrain, ytrain
+    end
+
+    function getData_test()
+        ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
+
+        # Loading Dataset
+        xtest, ytest = MLDatasets.MNIST(Float32, dir="mnist_data", split=:test)[:]
+
+        # Reshape Data in order to flatten each image into a linear array
+        xtest = reshape(xtest, 28,28,1,:)
+
+        # One-hot-encode the labels
+        ytest = Flux.onehotbatch(ytest, 0:9)
+
+        return xtest, ytest
     end
 
     """
@@ -331,7 +344,8 @@ module LeNet5
     
     ### Exports
     export createModel
-    export getData
+    export getData_train
+    export getData_test
     export makeFigurePluto_Images
     export makeFigurePluto_ConfusionMatrix
     export train!
@@ -339,4 +353,3 @@ module LeNet5
     export overall_accuracy
     export accuracy_per_class
 end
-LeNet5.getData(;percentage = 42)
