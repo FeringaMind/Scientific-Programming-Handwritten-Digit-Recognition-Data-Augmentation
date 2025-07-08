@@ -41,7 +41,7 @@ module LeNet5
     Returns:
         xtrain, ytrain, xtest, ytest: x... is the data and y... represents the labels.
     """
-    function getData(;percentage=69)
+    function getData(;percentage=100)
         # Disable manual confirmation of dataset download
         ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 
@@ -54,8 +54,14 @@ module LeNet5
 
         # Filtering train data: Images per label
         count = 1
-        xtrain = zeros(Float32, 28, 28, floor(Int, 60000*(percentage/100)))
-        ytrain = zeros(Float32, floor(Int, 60000*(percentage/100)))
+        xtrain = zeros(Float32, 28, 28, ceil(Int, 60000*(percentage/100)))
+        ytrain = zeros(Float32, ceil(Int, 60000*(percentage/100)))
+
+        println(size(xtrain))
+        println(size(ytrain))
+
+        #for testing
+        actual_amount = 0
 
         for label in 0:9
             inds = findall(ytrain_raw .== label)
@@ -67,11 +73,21 @@ module LeNet5
                 count += 1
             end
             println(length(1:floor(Int,(percentage/100)*(length(inds)))))
+            #for testing
+            actual_amount += length(1:floor(Int,(percentage/100)*(length(inds))))
+            #println(size(inds))
         end
+
+        println(actual_amount)
+
+        xtrain = xtrain[:, :, 1:end-(ceil(Int, 60000*(percentage/100))-(actual_amount))]
+        ytrain = ytrain[1:end-(ceil(Int, 60000*(percentage/100))-(actual_amount))]
+        
 
         #Todo Fix numbers not adding up (Issue)
 
-        #println(size(xtrain))
+        println(size(xtrain))
+        println(size(ytrain))
 
         # Reshape Data in order to flatten each image into a linear array
         xtrain = reshape(xtrain, 28,28,1,:)
@@ -185,7 +201,6 @@ module LeNet5
     Returns:
         loss_history: The loss_history of the training
     """
-    # data = (train_data[:x], train_data[:y])
 
     function train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
 
@@ -324,3 +339,4 @@ module LeNet5
     export overall_accuracy
     export accuracy_per_class
 end
+LeNet5.getData(;percentage = 42)
