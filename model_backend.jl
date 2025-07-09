@@ -33,15 +33,17 @@ module LeNet5
     end
 
     """
-    getData(percent)
+    getData_train(;pptt, amounts)
 
-    Gets the training and test data with labels and downloads the datasets if not already present
+    Gets the training data with labels and downloads the datasets if not already present
+    --below the main function there are two helper functions for calling with pptt or amounts--
 
     Takes:
         pptt: pptt of training data to return. The test data stays at its original size (default=1)
+        amounts: An array of the amount of representation for each label
 
     Returns:
-        xtrain, ytrain, xtest, ytest: x... is the data and y... represents the labels.
+        xtrain, ytrain: x... is the data and y... represents the labels.
     """
     function getData_train(;pptt=10000, amounts=missing)
 
@@ -60,13 +62,14 @@ module LeNet5
         # Loading Dataset	
         xtrain_raw, ytrain_raw = MLDatasets.MNIST(Float32, dir="mnist_data", split=:train)[:]
 
-        # Filtering train data: Images per label
+        #Initializing the data matrices
         count = 1
         xtrain = zeros(Float32, 28, 28, ceil(Int, 60000*(pptt/10000)))
         ytrain = zeros(Float32, ceil(Int, 60000*(pptt/10000)))
 
         actual_amount = 0
 
+        #Filtering train data: Images per label
         for label in 0:9
             inds = findall(ytrain_raw .== label)
             inds = Random.shuffle(inds) #shuffling for a randomized training set
@@ -79,6 +82,7 @@ module LeNet5
             actual_amount += length(1:floor(Int,(pptt/10000)*(length(inds))))
         end
 
+        #Cutting the data matrices to "actual amount"
         xtrain = xtrain[:, :, 1:end-(ceil(Int, 60000*(pptt/10000))-(actual_amount))]
         ytrain = ytrain[1:end-(ceil(Int, 60000*(pptt/10000))-(actual_amount))]
         
@@ -126,6 +130,18 @@ module LeNet5
         return xtrain, ytrain
     end
 
+     """
+    getData_test()
+
+    Gets the test data with labels and downloads the datasets if not already present
+
+    Takes: (no input)
+
+    Returns:
+        xtest, ytest: x... is the data and y... represents the labels.
+    """
+
+
     function getData_test()
         ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
 
@@ -142,7 +158,7 @@ module LeNet5
     end
 
     """
-    makeFigurePluto_Images(x_size, y_size, x_set, y_set, plotslice)
+    makeFigurePluto_Images(x_size, y_size, x_set, y_set)
 
     Creates a figure w/ CairoMakie displayable in a Pluto Notebook
 
@@ -151,18 +167,16 @@ module LeNet5
         y_size: size of the figure in y-direction
         x_set: the image set
         y_set: the label set
-        plotslice: the slider input
 
     Returns:
         fig: The figure
     """
-    function makeFigurePluto_Images(x_size, y_size, x_set, y_set, plotslice)
-        indices = 12 * (plotslice - 1) + 1 : 12 * plotslice
-	    fig = Figure(size = (x_size, y_size), fontsize=20)
-	    for (i, idx) in enumerate(indices)
-	        ax = Axis(fig[(i-1)÷4+1, (i-1)%4+1], title = "label=$(onecold(y_set[:, idx], 0:9))")
+    function makeFigurePluto_Images(x_size, y_size, x_set, y_set)
+	    fig = Figure(size = (x_size, y_size), fontsize=8)
+	    for i in 1:size(y_set)[2]
+	        ax = Axis(fig[floor(Int, (i-1)÷10)+1, floor(Int, (i-1)%10)+1], title = "label=$(Flux.onecold(y_set[:, i], 0:9))")
 		    hidedecorations!(ax)
-	        heatmap!(ax, reshape(x_set, 28,28,1,:)[:,end:-1:1,1,idx], colormap = :grays, colorrange = (0, 1))
+	        heatmap!(ax, reshape(x_set, 28,28,1,:)[:,end:-1:1,1,i], colormap = :grays, colorrange = (0, 1))
 	    end
 	    return fig
     end
@@ -170,17 +184,16 @@ module LeNet5
     """
     makeFigurePluto_ConfusionMatrix(y_hat,y)
 
-    #todo 
+    Creates a figure representing a confusion Matrix w/ CairoMakie displayable in a Pluto Notebook
 
     Takes:
-        y_hat:
-        y:
-        x_size: size of the figure in x-direction
-        y_size: size of the figure in y-direction
+        y_hat: Predicted class labels (vector of Ints)
+        y: True class labels (vector of Ints)
+        x_size: Size of the figure in x-direction
+        y_size: Size of the figure in y-direction
 
     Returns:
-        fig: the figure
-
+        fig: The figure
     """
 
     function makeFigurePluto_ConfusionMatrix(y_hat, y; x_size=600, y_size=600)
@@ -219,9 +232,9 @@ module LeNet5
 
 
     """
-    train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
+    train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4, chance=0.1, aug_fun::Function= (x, y) -> (x, 0))
 
-    Trains the model with the input parameters
+    Trains the model with the input parameters (with or without augmentations)
 
     Takes:
         model: The model to be trained (created by createModel())
@@ -230,16 +243,18 @@ module LeNet5
         batchsize: The batchsize to be used during training (default=32)
         lambda: The weight decay (default=1e-2)
         eta: The learning rate (default=3e-4)
+        chance: The chance of using an augmentation on an image
+        aug_fun: An augmentation function
 
     Returns:
         loss_history: The loss_history of the training
     """
 
-    function train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
+    function train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4, chance=0.1, aug_fun::Function= (x, y) -> (x, 0))
 
         # setup data and model
         xtrain, ytrain = data
-        train_loader = Flux.DataLoader(data, batchsize=batchsize, shuffle=true)
+
         loss_function = Flux.crossentropy
 
         opt_rule = OptimiserChain(WeightDecay(lambda), ADAMW(eta))
@@ -253,6 +268,12 @@ module LeNet5
         time_history = []
         actual = Flux.onecold(ytrain |> cpu, 0:9)
         for epoch in 1:epochs
+    
+            #Augmentation with aug_fun in each epoch
+
+            aug_data, amount_augmented = aug_fun(data, chance)
+
+            train_loader = Flux.DataLoader(aug_data, batchsize=batchsize, shuffle=true)
 
             println(repeat("-", width))
             print("Epoch ($(epoch)/$(epochs))...")
@@ -278,7 +299,7 @@ module LeNet5
             total = length(actual)
             acc = 100 * correct / total
 
-            println("trained for $(round(time_train, digits=3))s | reached $(round(mean(epoch_loss_history), digits=3)) loss with $(round(acc, digits=3))% accuracy")
+            println("trained for $(round(time_train, digits=3))s | reached $(round(mean(epoch_loss_history), digits=3)) loss with $(round(acc, digits=3))% accuracy | $(amount_augmented) augmented")
         end
 
         y_hat = model(xtrain |> cpu) # get the models prediciton after training
@@ -325,8 +346,8 @@ module LeNet5
     Calculates the classification accuracy per digit.
 
     Takes:
-        preds: predicted class labels (vector of Ints)
-        labels: true class labels (vector of Ints)
+        preds: Predicted class labels (vector of Ints)
+        labels: True class labels (vector of Ints)
 
     Returns:
         Dict mapping digit => accuracy
@@ -358,9 +379,6 @@ module LeNet5
         correct = count(preds .== labels) # count number of correct predictions
         return correct / length(labels) * 100 # compute pptt of accuracy of correct predictions
     end
-
-    
-    # todo function accuracy(preds, )
     
     ### Exports
     export createModel
