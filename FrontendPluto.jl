@@ -56,21 +56,12 @@ We start with loading the training and test data from the MNIST dataset, a colle
 
 # ╔═╡ 4bd85dd1-6661-4c23-a1c9-389da49187e8
 begin
-	datasets = []
-	for i in 10:20:110 # 0.0001 no worki
-		println(i)
-	    data = LeNet5.getData_train(; amounts=fill(i,10))
-		@show size(data[1]), size(data[2])
-		#@show Flux.onecold(data[2], 0:9)
-		push!(datasets, data)
-	end
+	data_100 = LeNet5.getData_train(;amounts=fill(10,10))
+	data_full = LeNet5.getData_train(; amounts=fill(5421,10))
+	
+	LeNet5.makeFigurePluto_Images(800, 800, data_100[1], data_100[2])
 
-	data = LeNet5.getData_train(; amounts=fill(5421,10))
-	push!(datasets, data)
-
-	for d in datasets
-		@show size(d[1]), size(d[2])
-	end
+	data_finished = rand() # marker that the data sets are prepared
 end
 
 # ╔═╡ 64fdd548-0994-4ccb-8a91-dc394f478926
@@ -80,41 +71,10 @@ Each image is stored as a tensor of shape (28, 28, 1) — the third dimension re
 The labels are represented using one-hot encoding: a binary vector of length 10, where the position of the 1 indicates the corresponding digit class (e.g., [0, 0, 0, 1, 0, 0, 0, 0, 0, 0] represents the digit 3). This encoding is a standard format used for classification tasks in machine learning.
 """
 
-# ╔═╡ 307a953f-69ac-4502-966a-922ef8a0856e
-# @bind plotslice PlutoUI.Slider(1:div(size(ytest,2),12))
-
-# ╔═╡ 01098daa-5bf5-46af-8c99-cbeb6a9efd42
-#=
-begin
-	indices = 12 * (plotslice - 1) + 1 : 12 * plotslice
-	fig = Figure(size = (800, 600), fontsize=20)
-	for (i, idx) in enumerate(indices)
-	    ax = Axis(fig[(i-1)÷4+1, (i-1)%4+1], title = "label=$(onecold(ytest[:, idx], 0:9))")
-		hidedecorations!(ax)
-	    heatmap!(ax, reshape(xtest, 28,28,1,:)[:,end:-1:1,1,idx], colormap = :grays, colorrange = (0, 1))
-	end
-	fig
-end
-=#
-
 # ╔═╡ 94da4f46-f348-4148-b7c5-7e01b901f356
 md"""
 ## 2. LeNet-Based Convolutional Neural Network
 """
-
-# ╔═╡ 0eac6cee-8cae-430b-9131-779f717118bc
-begin 
-	models = []
-	for i in 1:length(datasets)
-		println(i)
-	    model = LeNet5.createModel()
-		push!(models, (model, size(datasets[i][2])[2], "./models/model_$(size(datasets[i][2])[2]).bson"))
-	end
-
-	for m in models
-		@show typeof(m)
-	end
-end
 
 # ╔═╡ 69ae3d42-9d1b-4393-9b88-9a3930b03ac9
 md"""
@@ -161,17 +121,31 @@ For this task, we employ the cross-entropy loss function, which is commonly used
 
 # ╔═╡ 0b03cfae-62dd-4f99-9f2b-051b18f98adb
 begin
-	for i in 1:length(models)
-		if isfile(models[i][3])
-			@load models[i][3] model
-			models[i] = (model, models[i][2], models[i][3])
-			continue
-		end
-		LeNet5.train!(models[i][1],datasets[i];batchsize=2)
-		model = models[i][1]
-		@save models[i][3] model
+	data_finished # start after the data sets are prepared 
 		
+	model_100_NoAug = LeNet5.createModel() 
+	model_100_Rotation = LeNet5.createModel() 
+	model_100_Zoom = LeNet5.createModel() 
+	model_100_Noise = LeNet5.createModel() 
+	model_100_FullAug = LeNet5.createModel() 
+
+	model_full = LeNet5.createModel()
+
+	if isfile("./models/model_54210.bson")
+		@load "./models/model_54210.bson" model_full 
+	else
+		LeNet5.train!(model_full, data_full)
+		@save "./models/model_54210.bson" model_full
 	end
+		
+	LeNet5.train!(model_100_NoAug, data_100;batchsize=2)
+	LeNet5.train!(model_100_Rotation, data_100;batchsize=2)
+	LeNet5.train!(model_100_Zoom, data_100;batchsize=2)
+	LeNet5.train!(model_100_Noise, data_100;batchsize=2)
+	LeNet5.train!(model_100_FullAug, data_100;batchsize=2)
+
+	training_finished=rand() # marker that training finished
+	
 end
 
 # ╔═╡ fe56b42b-28db-4dfc-84d6-1d4e80c6aaa0
@@ -230,21 +204,40 @@ To evaluate the trained model, we apply it to the MNIST test set and generate pr
 
 # ╔═╡ 8e599299-03b4-4b45-b5c0-07e3beb603e4
 begin	
+	training_finished # activate after training finished
+	
 	testingData = LeNet5.getData_test()
 	ycold = Flux.onecold(testingData[2], 0:9)
-	
-	for i in 1:length(models)
-		pred = LeNet5.test(models[i][1], testingData;)
-		acc = LeNet5.overall_accuracy(pred, ycold)
-		println("T_Acc: $(acc) for $(models[i][2]) training images")
+
+	#Training the models differently
+
+	models_dict = Dict("model_100_NoAug" => model_100_NoAug,
+					   "model_100_Rotation" => model_100_Rotation,
+					   "model_100_Zoom" => model_100_Zoom,
+					   "model_100_Noise" => model_100_Noise,
+					   "model_100_FullAug" => model_100_FullAug,
+					   "model_Full" => model_full)
+
+
+	for (name,model) in models_dict
+		
+		pred = LeNet5.test(model, testingData)
+		acc = LeNet5.overall_accuracy(pred,ycold)
+		println("$(name) T_Acc: $(acc)")
 		accN = LeNet5.accuracy_per_class(pred, ycold)
+		
 		v = Float32[]
 		for (key, val) in accN
-			println("     Num: $(key) -> Acc: $(round(val[1], digits=2)) for $(val[2])")
+			println("     Num: $(key) -> Acc: $(round(val[1], digits=2)) for $(val[2])")			
 			push!(v, val[1])
 		end
+		
 		println("     $(round(maximum(v)- minimum(v), digits=2))")
+		
 	end
+
+	testing_finished= rand()
+	
 end
 
 # ╔═╡ 233b873b-d5bb-49cd-a432-6be2be754387
@@ -453,10 +446,7 @@ html"""
 # ╟─8c7603fa-07a7-4435-b80b-562f7ada38ee
 # ╠═4bd85dd1-6661-4c23-a1c9-389da49187e8
 # ╟─64fdd548-0994-4ccb-8a91-dc394f478926
-# ╟─307a953f-69ac-4502-966a-922ef8a0856e
-# ╟─01098daa-5bf5-46af-8c99-cbeb6a9efd42
 # ╟─94da4f46-f348-4148-b7c5-7e01b901f356
-# ╠═0eac6cee-8cae-430b-9131-779f717118bc
 # ╟─69ae3d42-9d1b-4393-9b88-9a3930b03ac9
 # ╟─4016bf0e-e127-46ed-bd57-74d6e46866b3
 # ╟─d28a4019-56f3-451b-8d86-676e410c9113
