@@ -1,6 +1,7 @@
 module LeNet5
     ### Usings & Imports
     using Flux, MLDatasets, CairoMakie, InteractiveUtils, Statistics, Random
+    using Images, ImageTransformations, CoordinateTransformations
 
     import Flux
 
@@ -31,6 +32,7 @@ module LeNet5
 
         return model
     end
+
 
     """
     getData_train(;pptt, amounts)
@@ -127,10 +129,11 @@ module LeNet5
         # One-hot-encode the labels
         ytrain = Flux.onehotbatch(ytrain, 0:9)
 
-        return xtrain, ytrain
+        return xtrain, ytrain 
     end
 
-     """
+
+    """
     getData_test()
 
     Gets the test data with labels and downloads the datasets if not already present
@@ -140,21 +143,103 @@ module LeNet5
     Returns:
         xtest, ytest: x... is the data and y... represents the labels.
     """
-
-
     function getData_test()
-        ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
+        ENV["DATADEPS_ALWAYS_ACCEPT"] = "true" 
 
         # Loading Dataset
-        xtest, ytest = MLDatasets.MNIST(Float32, dir="mnist_data", split=:test)[:]
+        xtest, ytest = MLDatasets.MNIST(Float32, dir="mnist_data", split=:test)[:] 
 
         # Reshape Data in order to flatten each image into a linear array
-        xtest = reshape(xtest, 28,28,1,:)
+        xtest = reshape(xtest, 28,28,1,:) 
 
         # One-hot-encode the labels
-        ytest = Flux.onehotbatch(ytest, 0:9)
+        ytest = Flux.onehotbatch(ytest, 0:9) 
 
         return xtest, ytest
+    end
+
+    """
+    add_noise(image, noise_level)
+
+    Adds noise to an image
+    Arguments:
+        image: 2D array (grayscale image)
+        noise_level: scaling factor for the noise (default = 0.1)
+    Returns:
+        Augmented image with added noise.
+    """
+    function add_noise(image, noise_level_range=0.1:0.5)
+        noise_level = rand(Float32, noise_level_range)
+        noise = noise_level * randn(size(image))
+        return clamp.(image .+ noise, 0.0, 1.0) # ensures pixel value stays between 0.0 and 1.0
+    end
+
+    """
+    zoom_image(image, zoom_factor)
+
+    Zooms into the center of the image by a given factor.
+    Arguments:
+        image: 2D array (grayscale image)
+        zoom_factor: scale factor > 1.0 zooms in (default = 1.2)
+    Returns:
+        Zoomed image.
+    """
+    function zoom_image(image, zoom_factor_range=1.2:0.8)
+        zoom_factor = rand(Float32, zoom_factor_range)
+        center = Tuple(round.(Int, size(image) ./ 2)) # middle of picture
+        tfm = recenter(ScaledTransformation(zoom_factor, zoom_factor), center) # ScaledTransformation zooms, recenter determines center of image
+        return warp(image, tfm, axes(image), fill=0.0f0) # zoom -> fill empty pixels 
+    end
+
+    """
+    rotate_image(image, max_angle_deg)
+
+    Rotates the image by a random angle in the range [-max_angle_deg, +max_angle_deg].
+    Arguments:
+        image: 2D array (grayscale image)
+        max_angle_deg: maximum rotation in degrees (default = 20)
+    Returns:
+        Rotated image.
+    """
+    function rotate_image(image, max_angle_deg=45) 
+        angle_rad = rand(-max_angle_deg:max_angle_deg) * (π / 180) # selects random angle in degrees from the range [–20, +20] and converts it to radians
+        center = Tuple(round.(Int, size(image) ./ 2)) # determine center of image
+        tfm = recenter(RotMatrix(angle_rad), center) # rotationmatrix around center
+        return warp(image, tfm, axes(image), fill=0.0f0) # rotate -> fill corners black
+    end
+
+    """
+    apply_augmentation(x_train, y_train; prob, augmentation_fns)
+
+    Applies random data augmentation to a subset of the training data.
+    Arguments:
+        x_train: 4D array of shape (28,28,1,N), original training images
+        y_train: one-hot encoded labels of shape (10,N)
+        prob: probability that a given image is augmented (e.g., 0.1 = 10%)
+        augmentation_fns: list of augmentation functions to randomly choose from
+    Returns:
+        x_combined: original and augmented images
+        y_combined: corresponding labels
+        actual_prob: actual fraction of images that were augmented
+    """
+    function apply_augmentation(x_train, y_train; prob=0.1, augmentation_fns=[add_noise, zoom_image, rotate_image])
+
+        x_train_aug = deepcopy(x_train)
+        n_samples = size(x_train_aug, 4) # Determine the number of training images
+
+        n_augmented = 0
+        for i in 1:n_samples
+            if rand(Float32, 0:1) <= prob # augment with prob precentage
+                img = reshape(x_train_aug[:, :, 1, i], (28,28))
+                fn = rand(augmentation_fns) # random augmentation function
+                aug_img = fn(img) # Apply the selected function to the image
+                aug_img_shp = reshape(aug_img, 28,28,1,1)
+                x_train_aug[:, :, 1, i] = aug_img_shp
+                n_augmented += 1
+            end
+        end
+
+        return (x_train_aug, y_train), n_augmented # returns trainingdata, new labels, actual augmentation rate
     end
 
     """
@@ -384,6 +469,7 @@ module LeNet5
     export createModel
     export getData_train
     export getData_test
+    export apply_augmentation
     export makeFigurePluto_Images
     export makeFigurePluto_ConfusionMatrix
     export train!
