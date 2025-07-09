@@ -26,8 +26,9 @@ begin
 	#import Flux: DataLoader, onehotbatch, onecold, crossentropy
 
 	include("model_backend.jl")
-	using .LeNet5, PlutoUI, Flux
+	using .LeNet5, PlutoUI, Flux, BSON
 	import Flux: onecold
+	import BSON: @save, @load
 	
 	#CairoMakie.activate!(; px_per_unit = 4)
 	PlutoUI.TableOfContents()
@@ -107,7 +108,11 @@ begin
 	for i in 1:length(datasets)
 		println(i)
 	    model = LeNet5.createModel()
-		push!(models, (model, size(datasets[i][2])[2]))
+		push!(models, (model, size(datasets[i][2])[2], "./models/model_$(size(datasets[i][2])[2]).bson"))
+	end
+
+	for m in models
+		@show typeof(m)
 	end
 end
 
@@ -157,7 +162,15 @@ For this task, we employ the cross-entropy loss function, which is commonly used
 # ╔═╡ 0b03cfae-62dd-4f99-9f2b-051b18f98adb
 begin
 	for i in 1:length(models)
+		if isfile(models[i][3])
+			@load models[i][3] model
+			models[i] = (model, models[i][2], models[i][3])
+			continue
+		end
 		LeNet5.train!(models[i][1],datasets[i];batchsize=2)
+		model = models[i][1]
+		@save models[i][3] model
+		
 	end
 end
 
