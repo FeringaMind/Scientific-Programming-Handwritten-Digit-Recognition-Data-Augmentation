@@ -56,16 +56,19 @@ We start with loading the training and test data from the MNIST dataset, a colle
 # ╔═╡ 4bd85dd1-6661-4c23-a1c9-389da49187e8
 begin
 	datasets = []
-	for i in 2:20:102 # 0.0001 no worki
+	for i in 10:20:110 # 0.0001 no worki
 		println(i)
-	    data = LeNet5.getData_train(; percentage = i)
+	    data = LeNet5.getData_train(; amounts=fill(i,10))
 		@show size(data[1]), size(data[2])
 		#@show Flux.onecold(data[2], 0:9)
 		push!(datasets, data)
 	end
 
+	data = LeNet5.getData_train(; amounts=fill(5421,10))
+	push!(datasets, data)
+
 	for d in datasets
-		@show size(d[1]), size(d[2])[2]
+		@show size(d[1]), size(d[2])
 	end
 end
 

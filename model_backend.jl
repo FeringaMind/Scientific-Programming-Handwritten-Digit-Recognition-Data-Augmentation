@@ -38,23 +38,32 @@ module LeNet5
     Gets the training and test data with labels and downloads the datasets if not already present
 
     Takes:
-        percentage: percentage of training data to return. The test data stays at its original size (default=1)
+        pptt: pptt of training data to return. The test data stays at its original size (default=1)
 
     Returns:
         xtrain, ytrain, xtest, ytest: x... is the data and y... represents the labels.
     """
-    function getData_train(;percentage=10000)
-        # Disable manual confirmation of dataset download
-        ENV["DATADEPS_ALWAYS_ACCEPT"] = "true"
+    function getData_train(;pptt=10000, amounts=missing)
 
+        if ismissing(amounts)
+            return getData_train_pptt(pptt=pptt)
+        else
+            return getData_train_amounts(amounts=amounts)
+        end
+    end
+
+
+    function getData_train_pptt(;pptt=10000)
+        # Disable manual confirmation of dataset download
+        ENV["DATADEPS_ALWAYS_ACCEPT"] = "true" 
 
         # Loading Dataset	
         xtrain_raw, ytrain_raw = MLDatasets.MNIST(Float32, dir="mnist_data", split=:train)[:]
 
         # Filtering train data: Images per label
         count = 1
-        xtrain = zeros(Float32, 28, 28, ceil(Int, 60000*(percentage/10000)))
-        ytrain = zeros(Float32, ceil(Int, 60000*(percentage/10000)))
+        xtrain = zeros(Float32, 28, 28, ceil(Int, 60000*(pptt/10000)))
+        ytrain = zeros(Float32, ceil(Int, 60000*(pptt/10000)))
 
         actual_amount = 0
 
@@ -62,17 +71,52 @@ module LeNet5
             inds = findall(ytrain_raw .== label)
             inds = Random.shuffle(inds) #shuffling for a randomized training set
 
-            for i in inds[1:(floor(Int,(percentage/10000)*(length(inds))))] 
+            for i in inds[1:(floor(Int,(pptt/10000)*(length(inds))))] 
                 xtrain[:,:,count] = xtrain_raw[:,:,i]
                 ytrain[count] = ytrain_raw[i]
                 count += 1
             end
-            actual_amount += length(1:floor(Int,(percentage/10000)*(length(inds))))
+            actual_amount += length(1:floor(Int,(pptt/10000)*(length(inds))))
         end
 
-        xtrain = xtrain[:, :, 1:end-(ceil(Int, 60000*(percentage/10000))-(actual_amount))]
-        ytrain = ytrain[1:end-(ceil(Int, 60000*(percentage/10000))-(actual_amount))]
+        xtrain = xtrain[:, :, 1:end-(ceil(Int, 60000*(pptt/10000))-(actual_amount))]
+        ytrain = ytrain[1:end-(ceil(Int, 60000*(pptt/10000))-(actual_amount))]
         
+        # Reshape Data in order to flatten each image into a linear array
+        xtrain = reshape(xtrain, 28,28,1,:)
+
+        # One-hot-encode the labels
+        ytrain = Flux.onehotbatch(ytrain, 0:9)
+
+        return xtrain, ytrain
+
+    end
+
+    function getData_train_amounts(;amounts)
+        # Disable manual confirmation of dataset download
+        ENV["DATADEPS_ALWAYS_ACCEPT"] = "true" 
+
+         # Loading Dataset	
+        xtrain_raw, ytrain_raw = MLDatasets.MNIST(Float32, dir="mnist_data", split=:train)[:]
+
+        count = 1
+        actual_amount = sum(amounts)
+        
+
+        xtrain = zeros(Float32, 28, 28, actual_amount)
+        ytrain = zeros(Float32, actual_amount)
+
+        for label in 0:9
+            inds = findall(ytrain_raw .== label)
+            inds = Random.shuffle(inds) #shuffling for a randomized training set
+
+            for i in inds[1:amounts[label+1]] 
+                xtrain[:,:,count] = xtrain_raw[:,:,i]
+                ytrain[count] = ytrain_raw[i]
+                count += 1
+            end
+        end
+
         # Reshape Data in order to flatten each image into a linear array
         xtrain = reshape(xtrain, 28,28,1,:)
 
@@ -293,7 +337,7 @@ module LeNet5
             mask = labels .== digit # boolean mask where the true label matches the current digit
             total = count(mask) # Count the times this digit appears in the true labels
             correct = count(preds[mask] .== digit)  # count correct predictions
-            class_accuracies[digit] = ((total == 0 ? 0.0 : correct / total * 100), total) # adding 0.0 accuracy if digit not in data, else compute percentage accuracy
+            class_accuracies[digit] = ((total == 0 ? 0.0 : correct / total * 100), total) # adding 0.0 accuracy if digit not in data, else compute pptt accuracy
         end
         return class_accuracies
     end
@@ -308,11 +352,11 @@ module LeNet5
         labels: true class labels (vector of Ints)
 
     Returns:
-        accuracy: overall accuracy as a Float64 percentage
+        accuracy: overall accuracy as a Float64 pptt
     """
     function overall_accuracy(preds::Vector{Int}, labels::Vector{Int})
         correct = count(preds .== labels) # count number of correct predictions
-        return correct / length(labels) * 100 # compute percentage of accuracy of correct predictions
+        return correct / length(labels) * 100 # compute pptt of accuracy of correct predictions
     end
 
     
