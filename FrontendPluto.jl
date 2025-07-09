@@ -21,16 +21,12 @@ begin
 	using Pkg
 	Pkg.activate("")
 
-	#using Flux, CUDA, MLDatasets, PlutoUI, CairoMakie, LinearAlgebra, FileIO
-
-	#import Flux: DataLoader, onehotbatch, onecold, crossentropy
-
 	include("model_backend.jl")
-	using .LeNet5, PlutoUI, Flux, BSON
+	include("augmentation_backend.jl")
+	using .LeNet5, .Augmentation, PlutoUI, Flux, BSON
 	import Flux: onecold
 	import BSON: @save, @load
 	
-	#CairoMakie.activate!(; px_per_unit = 4)
 	PlutoUI.TableOfContents()
 end
 
@@ -59,9 +55,44 @@ begin
 	data_100 = LeNet5.getData_train(;amounts=fill(10,10))
 	data_full = LeNet5.getData_train(; amounts=fill(5421,10))
 	
-	LeNet5.makeFigurePluto_Images(800, 800, data_100[1], data_100[2])
+	fig = LeNet5.makeFigurePluto_Images(800, 800, data_100[1], data_100[2])
 
 	data_finished = rand() # marker that the data sets are prepared
+
+	fig
+end
+
+# ╔═╡ 384bd25d-66f6-482e-935d-9c9708179690
+begin
+	(data_rotate_x, data_rotate_y), a = Augmentation.apply_augmentation(data_100[1], data_100[2]; prob = 0.5, augmentation_fns=[rotate_image])
+
+	fig_aug_rot = LeNet5.makeFigurePluto_Images(800, 800, data_rotate_x, data_rotate_y)
+
+	println(a)
+
+	fig_aug_rot
+end
+
+# ╔═╡ 976e1577-d770-4c4c-bec2-0caec706b391
+begin
+	(data_noise_x, data_noise_y), b = Augmentation.apply_augmentation(data_100[1], data_100[2]; prob = 0.5, augmentation_fns=[add_noise])
+
+	fig_aug_noise = LeNet5.makeFigurePluto_Images(800, 800, data_noise_x, data_noise_y)
+
+	println(b)
+
+	fig_aug_noise
+end
+
+# ╔═╡ 3bdcda16-bd7b-4e73-965a-8b5d0532a1e4
+begin
+	(data_all_x, data_all_y), c = Augmentation.apply_augmentation(data_100[1], data_100[2]; prob = 0.5, augmentation_fns=[add_noise, rotate_image])
+
+	fig_all_noise = LeNet5.makeFigurePluto_Images(800, 800, data_all_x, data_all_y)
+
+	println(c)
+
+	fig_all_noise
 end
 
 # ╔═╡ 64fdd548-0994-4ccb-8a91-dc394f478926
@@ -128,21 +159,20 @@ begin
 	model_100_Zoom = LeNet5.createModel() 
 	model_100_Noise = LeNet5.createModel() 
 	model_100_FullAug = LeNet5.createModel() 
-
 	model_full = LeNet5.createModel()
 
 	if isfile("./models/model_54210.bson")
-		@load "./models/model_54210.bson" model_full 
+		@load "./models/model_54210.bson" model_full
 	else
 		LeNet5.train!(model_full, data_full)
 		@save "./models/model_54210.bson" model_full
 	end
 		
-	LeNet5.train!(model_100_NoAug, data_100;batchsize=2)
-	LeNet5.train!(model_100_Rotation, data_100;batchsize=2)
-	LeNet5.train!(model_100_Zoom, data_100;batchsize=2)
-	LeNet5.train!(model_100_Noise, data_100;batchsize=2)
-	LeNet5.train!(model_100_FullAug, data_100;batchsize=2)
+	LeNet5.train!(model_100_NoAug, data_100;batchsize=2, epochs=100)
+	LeNet5.train!(model_100_Rotation, data_100;batchsize=2, epochs=100)
+	LeNet5.train!(model_100_Zoom, data_100;batchsize=2, epochs=20)
+	LeNet5.train!(model_100_Noise, data_100;batchsize=2, epochs=100)
+	LeNet5.train!(model_100_FullAug, data_100;batchsize=2, epochs=100)
 
 	training_finished=rand() # marker that training finished
 	
@@ -445,6 +475,9 @@ html"""
 # ╠═ba491ad9-0c09-44a3-ab98-21919da7c62e
 # ╟─8c7603fa-07a7-4435-b80b-562f7ada38ee
 # ╠═4bd85dd1-6661-4c23-a1c9-389da49187e8
+# ╠═384bd25d-66f6-482e-935d-9c9708179690
+# ╠═976e1577-d770-4c4c-bec2-0caec706b391
+# ╠═3bdcda16-bd7b-4e73-965a-8b5d0532a1e4
 # ╟─64fdd548-0994-4ccb-8a91-dc394f478926
 # ╟─94da4f46-f348-4148-b7c5-7e01b901f356
 # ╟─69ae3d42-9d1b-4393-9b88-9a3930b03ac9
