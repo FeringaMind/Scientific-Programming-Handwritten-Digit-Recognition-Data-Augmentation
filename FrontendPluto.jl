@@ -63,8 +63,10 @@ begin
 end
 
 # ╔═╡ 384bd25d-66f6-482e-935d-9c9708179690
+# ╠═╡ disabled = true
+#=╠═╡
 begin
-	(data_rotate_x, data_rotate_y), a = Augmentation.apply_augmentation(data_100[1], data_100[2]; prob = 0.5, augmentation_fns=[rotate_image])
+	(data_rotate_x, data_rotate_y), a = Augmentation.apply_augmentation_rotate(data_100[1], data_100[2]; prob = 0.5)
 
 	fig_aug_rot = LeNet5.makeFigurePluto_Images(800, 800, data_rotate_x, data_rotate_y)
 
@@ -72,10 +74,13 @@ begin
 
 	fig_aug_rot
 end
+  ╠═╡ =#
 
 # ╔═╡ 976e1577-d770-4c4c-bec2-0caec706b391
+# ╠═╡ disabled = true
+#=╠═╡
 begin
-	(data_noise_x, data_noise_y), b = Augmentation.apply_augmentation(data_100[1], data_100[2]; prob = 0.5, augmentation_fns=[add_noise])
+	(data_noise_x, data_noise_y), b = Augmentation.apply_augmentation_noise(data_100[1], data_100[2]; prob = 0.5)
 
 	fig_aug_noise = LeNet5.makeFigurePluto_Images(800, 800, data_noise_x, data_noise_y)
 
@@ -83,10 +88,13 @@ begin
 
 	fig_aug_noise
 end
+  ╠═╡ =#
 
 # ╔═╡ 3bdcda16-bd7b-4e73-965a-8b5d0532a1e4
+# ╠═╡ disabled = true
+#=╠═╡
 begin
-	(data_all_x, data_all_y), c = Augmentation.apply_augmentation(data_100[1], data_100[2]; prob = 0.5, augmentation_fns=[add_noise, rotate_image])
+	(data_all_x, data_all_y), c = Augmentation.apply_augmentation_full(data_100[1], data_100[2]; prob = 0.5)
 
 	fig_all_noise = LeNet5.makeFigurePluto_Images(800, 800, data_all_x, data_all_y)
 
@@ -94,6 +102,7 @@ begin
 
 	fig_all_noise
 end
+  ╠═╡ =#
 
 # ╔═╡ 64fdd548-0994-4ccb-8a91-dc394f478926
 md"""
@@ -150,7 +159,7 @@ With the model architecture in place, we now train the convolutional neural netw
 For this task, we employ the cross-entropy loss function, which is commonly used for multi-class classification problems. Let $\hat{\mathbf{y}}_{i}$ denote the predicted probability distribution for the i-th sample, and $\mathbf{y}_{i}$ the corresponding one-hot encoded ground truth label. The cross-entropy loss over a batch $\mathbb{N}$ of samples is defined as:
 """
 
-# ╔═╡ 0b03cfae-62dd-4f99-9f2b-051b18f98adb
+# ╔═╡ 0377fa30-04f9-452e-8d3a-c32f9635a7ad
 begin
 	data_finished # start after the data sets are prepared 
 		
@@ -169,10 +178,10 @@ begin
 	end
 		
 	LeNet5.train!(model_100_NoAug, data_100;batchsize=2, epochs=100)
-	LeNet5.train!(model_100_Rotation, data_100;batchsize=2, epochs=100)
-	LeNet5.train!(model_100_Zoom, data_100;batchsize=2, epochs=20)
-	LeNet5.train!(model_100_Noise, data_100;batchsize=2, epochs=100)
-	LeNet5.train!(model_100_FullAug, data_100;batchsize=2, epochs=100)
+	LeNet5.train!(model_100_Rotation, data_100;batchsize=2, epochs=100, aug_fun=Augmentation.apply_augmentation_rotate)
+	#LeNet5.train!(model_100_Zoom, data_100;batchsize=2, epochs=20)
+	LeNet5.train!(model_100_Noise, data_100;batchsize=2, epochs=100, aug_fun=Augmentation.apply_augmentation_noise)
+	LeNet5.train!(model_100_FullAug, data_100;batchsize=2, epochs=100, aug_fun=Augmentation.apply_augmentation_full)
 
 	training_finished=rand() # marker that training finished
 	
@@ -232,7 +241,7 @@ md"""
 To evaluate the trained model, we apply it to the MNIST test set and generate predictions. The model outputs a probability distribution over the 10 digit classes for each image, and we select the most likely class using onecold:
 """
 
-# ╔═╡ 8e599299-03b4-4b45-b5c0-07e3beb603e4
+# ╔═╡ 9ebf65a7-41f0-48e0-a67e-4789858fdc5e
 begin	
 	training_finished # activate after training finished
 	
@@ -485,14 +494,14 @@ html"""
 # ╟─d28a4019-56f3-451b-8d86-676e410c9113
 # ╟─299f8e36-41ab-4536-91d8-5d4cac16aecb
 # ╟─06baaad7-d8b2-4a51-8421-2f8d1a8ae70b
-# ╠═0b03cfae-62dd-4f99-9f2b-051b18f98adb
+# ╠═0377fa30-04f9-452e-8d3a-c32f9635a7ad
 # ╟─fe56b42b-28db-4dfc-84d6-1d4e80c6aaa0
 # ╟─83d17c51-34d2-4cc1-95b0-0a405c9f1499
 # ╟─3f93e564-f110-40db-85ee-58bfd31c791e
 # ╟─64c2570c-b055-4c8f-bb97-df17e0adaef4
 # ╟─dc63e616-488b-45de-b8c3-5449c1a58267
 # ╟─917fa567-43b4-4a5a-a7dd-52de16e4651f
-# ╠═8e599299-03b4-4b45-b5c0-07e3beb603e4
+# ╠═9ebf65a7-41f0-48e0-a67e-4789858fdc5e
 # ╟─233b873b-d5bb-49cd-a432-6be2be754387
 # ╟─3e4013a4-dc76-4715-8e51-12cd24c48949
 # ╟─3aea78df-5212-4ae8-8c67-6406d8c20591

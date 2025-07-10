@@ -14,7 +14,7 @@ module Augmentation
     Returns:
         Augmented image with added noise.
     """
-    function add_noise(image, noise_level_range=0.1:0.5)
+    function add_noise(image, noise_level_range=0.3:0.5)
         noise_level = rand(noise_level_range)
         noise = noise_level * randn(size(image))
         return clamp.(image .+ noise, 0.0, 1.0) # ensures pixel value stays between 0.0 and 1.0
@@ -70,7 +70,7 @@ module Augmentation
         y_combined: corresponding labels
         actual_prob: actual fraction of images that were augmented
     """
-    function apply_augmentation(x_train, y_train; prob=0.1, augmentation_fns=[add_noise, zoom_image, rotate_image])
+    function apply_augmentation_noise(x_train, y_train, prob)
 
         x_train_aug = deepcopy(x_train)
         n_samples = size(x_train_aug, 4) # Determine the number of training images
@@ -79,8 +79,7 @@ module Augmentation
         for i in 1:n_samples
             if rand(0.0:1.0) <= prob # augment with prob precentage
                 img = reshape(x_train_aug[:, :, 1, i], (28,28))
-                fn_idx = rand(1:size(augmentation_fns)[1]) # random augmentation function
-                fn = augmentation_fns[fn_idx]
+                fn = add_noise
                 aug_img = fn(img) # Apply the selected function to the image
                 aug_img_shp = reshape(aug_img, 28,28,1,1)
                 x_train_aug[:, :, 1, i] = aug_img_shp
@@ -89,6 +88,34 @@ module Augmentation
         end
 
         return (x_train_aug, y_train), n_augmented # returns trainingdata, new labels, actual augmentation rate
+    end
+
+    function apply_augmentation_rotate(x_train, y_train, prob)
+
+        x_train_aug = deepcopy(x_train)
+        n_samples = size(x_train_aug, 4) # Determine the number of training images
+
+        n_augmented = 0
+        for i in 1:n_samples
+            if rand(0.0:1.0) <= prob # augment with prob precentage
+                img = reshape(x_train_aug[:, :, 1, i], (28,28))
+                fn = rotate_image
+                aug_img = fn(img) # Apply the selected function to the image
+                aug_img_shp = reshape(aug_img, 28,28,1,1)
+                x_train_aug[:, :, 1, i] = aug_img_shp
+                n_augmented += 1
+            end
+        end
+
+        return (x_train_aug, y_train), n_augmented # returns trainingdata, new labels, actual augmentation rate
+    end
+
+    function apply_augmentation_full(x_train, y_train, prob)
+
+        (rot_data_x,rot_data_y), rot_amount =apply_augmentation_rotate(x_train, y_train, prob/2)
+        (noise_data_x,noise_data_y), noise_amount =apply_augmentation_noise(rot_data_x, rot_data_y, prob/2)
+
+        return (noise_data_x,noise_data_y), noise_amount+rot_amount # returns trainingdata, new labels, actual augmentation rate
     end
 
     ### Exports
