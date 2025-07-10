@@ -14,7 +14,7 @@ module Augmentation
     Returns:
         Augmented image with added noise.
     """
-    function add_noise(image, noise_level_range=0.3:0.5)
+    function add_noise(image, noise_level_range=0.05:0.2)
         noise_level = rand(noise_level_range)
         noise = noise_level * randn(size(image))
         return clamp.(image .+ noise, 0.0, 1.0) # ensures pixel value stays between 0.0 and 1.0
@@ -49,7 +49,7 @@ module Augmentation
     Returns:
         Rotated image.
     """
-    function rotate_image(image, max_angle_deg=45) 
+    function rotate_image(image, max_angle_deg=15) 
         angle_rad = rand(-max_angle_deg:max_angle_deg) * (π / 180) # selects random angle in degrees from the range [–20, +20] and converts it to radians
         center = Tuple(round.(Int, size(image) ./ 2)) # determine center of image
         tfm = recenter(ImageTransformations.Rotations.RotMatrix(angle_rad), center) # rotationmatrix around center
@@ -112,8 +112,8 @@ module Augmentation
 
     function apply_augmentation_full(x_train, y_train, prob)
 
-        (rot_data_x,rot_data_y), rot_amount =apply_augmentation_rotate(x_train, y_train, prob/2)
-        (noise_data_x,noise_data_y), noise_amount =apply_augmentation_noise(rot_data_x, rot_data_y, prob/2)
+        (rot_data_x,rot_data_y), rot_amount = apply_augmentation_rotate(x_train, y_train, prob/4)
+        (noise_data_x,noise_data_y), noise_amount = apply_augmentation_noise(rot_data_x, rot_data_y, prob/4)
 
         return (noise_data_x,noise_data_y), noise_amount+rot_amount # returns trainingdata, new labels, actual augmentation rate
     end

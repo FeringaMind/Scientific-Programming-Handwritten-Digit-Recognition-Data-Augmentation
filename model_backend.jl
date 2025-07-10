@@ -174,8 +174,9 @@ module LeNet5
     """
     function makeFigurePluto_Images(x_size, y_size, x_set, y_set)
 	    fig = Figure(size = (x_size, y_size), fontsize=8)
+        row_size = round(Int, (size(y_set)[2])/10)
 	    for i in 1:size(y_set)[2]
-	        ax = CairoMakie.Axis(fig[floor(Int, (i-1)÷10)+1, floor(Int, (i-1)%10)+1], title = "label=$(Flux.onecold(y_set[:, i], 0:9))")
+	        ax = CairoMakie.Axis(fig[floor(Int, (i-1)÷row_size)+1, floor(Int, (i-1)%row_size)+1], title = "label=$(Flux.onecold(y_set[:, i], 0:9))")
 		    hidedecorations!(ax)
 	        heatmap!(ax, reshape(x_set, 28,28,1,:)[:,end:-1:1,1,i], colormap = :grays, colorrange = (0, 1))
 	    end

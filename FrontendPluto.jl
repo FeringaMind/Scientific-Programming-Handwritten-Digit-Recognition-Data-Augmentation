@@ -52,57 +52,54 @@ We start with loading the training and test data from the MNIST dataset, a colle
 
 # ╔═╡ 4bd85dd1-6661-4c23-a1c9-389da49187e8
 begin
-	data_100 = LeNet5.getData_train(;amounts=fill(10,10))
-	data_full = LeNet5.getData_train(; amounts=fill(5421,10))
+	data_100 = LeNet5.getData_train(;amounts=fill(100,10))
+	# data_full = LeNet5.getData_train(; amounts=fill(5421,10))
 	
-	fig = LeNet5.makeFigurePluto_Images(800, 800, data_100[1], data_100[2])
+	# fig = LeNet5.makeFigurePluto_Images(800, 1400, data_100[1], data_100[2])
 
 	data_finished = rand() # marker that the data sets are prepared
 
-	fig
+	# fig
 end
 
 # ╔═╡ 384bd25d-66f6-482e-935d-9c9708179690
-# ╠═╡ disabled = true
-#=╠═╡
 begin
-	(data_rotate_x, data_rotate_y), a = Augmentation.apply_augmentation_rotate(data_100[1], data_100[2]; prob = 0.5)
+	#=
+	(data_rotate_x, data_rotate_y), a = Augmentation.apply_augmentation_rotate(data_100[1], data_100[2], 0.5)
 
-	fig_aug_rot = LeNet5.makeFigurePluto_Images(800, 800, data_rotate_x, data_rotate_y)
+	fig_aug_rot = LeNet5.makeFigurePluto_Images(800, 1400, data_rotate_x, data_rotate_y)
 
 	println(a)
 
 	fig_aug_rot
+	=#
 end
-  ╠═╡ =#
 
 # ╔═╡ 976e1577-d770-4c4c-bec2-0caec706b391
-# ╠═╡ disabled = true
-#=╠═╡
 begin
-	(data_noise_x, data_noise_y), b = Augmentation.apply_augmentation_noise(data_100[1], data_100[2]; prob = 0.5)
+	#=
+	(data_noise_x, data_noise_y), b = Augmentation.apply_augmentation_noise(data_100[1], data_100[2], 0.5)
 
-	fig_aug_noise = LeNet5.makeFigurePluto_Images(800, 800, data_noise_x, data_noise_y)
+	fig_aug_noise = LeNet5.makeFigurePluto_Images(800, 1400, data_noise_x, data_noise_y)
 
 	println(b)
 
 	fig_aug_noise
+	=#
 end
-  ╠═╡ =#
 
 # ╔═╡ 3bdcda16-bd7b-4e73-965a-8b5d0532a1e4
-# ╠═╡ disabled = true
-#=╠═╡
 begin
-	(data_all_x, data_all_y), c = Augmentation.apply_augmentation_full(data_100[1], data_100[2]; prob = 0.5)
+	#=
+	(data_all_x, data_all_y), c = Augmentation.apply_augmentation_full(data_100[1], data_100[2], 0.5)
 
-	fig_all_noise = LeNet5.makeFigurePluto_Images(800, 800, data_all_x, data_all_y)
+	fig_all_noise = LeNet5.makeFigurePluto_Images(800, 1400, data_all_x, data_all_y)
 
 	println(c)
 
 	fig_all_noise
+	=#
 end
-  ╠═╡ =#
 
 # ╔═╡ 64fdd548-0994-4ccb-8a91-dc394f478926
 md"""
@@ -165,7 +162,6 @@ begin
 		
 	model_100_NoAug = LeNet5.createModel() 
 	model_100_Rotation = LeNet5.createModel() 
-	model_100_Zoom = LeNet5.createModel() 
 	model_100_Noise = LeNet5.createModel() 
 	model_100_FullAug = LeNet5.createModel() 
 	model_full = LeNet5.createModel()
@@ -177,11 +173,10 @@ begin
 		@save "./models/model_54210.bson" model_full
 	end
 		
-	LeNet5.train!(model_100_NoAug, data_100;batchsize=2, epochs=100)
-	LeNet5.train!(model_100_Rotation, data_100;batchsize=2, epochs=100, aug_fun=Augmentation.apply_augmentation_rotate)
-	#LeNet5.train!(model_100_Zoom, data_100;batchsize=2, epochs=20)
-	LeNet5.train!(model_100_Noise, data_100;batchsize=2, epochs=100, aug_fun=Augmentation.apply_augmentation_noise)
-	LeNet5.train!(model_100_FullAug, data_100;batchsize=2, epochs=100, aug_fun=Augmentation.apply_augmentation_full)
+	LeNet5.train!(model_100_NoAug, data_100;batchsize=32, epochs=40, lambda=1e-2, eta=3e-4)
+	LeNet5.train!(model_100_Rotation, data_100;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_rotate, chance=0.5, lambda=1e-2, eta=3e-4)
+	LeNet5.train!(model_100_Noise, data_100;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_noise, chance=0.5, lambda=1e-2, eta=3e-4)
+	LeNet5.train!(model_100_FullAug, data_100;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_full, chance=0.5, lambda=1e-2, eta=3e-4)
 
 	training_finished=rand() # marker that training finished
 	
@@ -252,7 +247,6 @@ begin
 
 	models_dict = Dict("model_100_NoAug" => model_100_NoAug,
 					   "model_100_Rotation" => model_100_Rotation,
-					   "model_100_Zoom" => model_100_Zoom,
 					   "model_100_Noise" => model_100_Noise,
 					   "model_100_FullAug" => model_100_FullAug,
 					   "model_Full" => model_full)
