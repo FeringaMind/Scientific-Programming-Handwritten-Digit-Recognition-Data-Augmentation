@@ -57,19 +57,20 @@ module Augmentation
     end
 
     """
-    apply_augmentation(x_train, y_train; prob, augmentation_fns)
+    apply_augmentation_noise(x_train, y_train, prob)
+    
+    Randomly applies noise to a portion of the training dataset with specified probability.
+    
+    Takes: 
+        x_train: The original training images
+        y_train: The corresponding labels for the training images
+        prob: probability/chance to apply noise to each image
 
-    Applies random data augmentation to a subset of the training data.
-    Arguments:
-        x_train: 4D array of shape (28,28,1,N), original training images
-        y_train: one-hot encoded labels of shape (10,N)
-        prob: probability that a given image is augmented (e.g., 0.1 = 10%)
-        augmentation_fns: list of augmentation functions to randomly choose from
-    Returns:
-        x_combined: original and augmented images
-        y_combined: corresponding labels
-        actual_prob: actual fraction of images that were augmented
+    Returns: 
+        (x_train_aug, y_train): Tuple of augmented images and original labels
+        n_augmented: Number of images that were actually augmented
     """
+
     function apply_augmentation_noise(x_train, y_train, prob)
 
         x_train_aug = deepcopy(x_train)
@@ -89,6 +90,21 @@ module Augmentation
 
         return (x_train_aug, y_train), n_augmented # returns trainingdata, new labels, actual augmentation rate
     end
+
+    """
+    apply_augmentation_rotate(x_train, y_train, prob)
+
+    Randomly applies rotation to a portion of the training dataset with specified probability.
+
+    Takes: 
+        x_train: The original training images
+        y_train: The corresponding labels for the training images
+        prob: probability/chance to apply rotation to each image
+
+    Returns: 
+        (x_train_aug, y_train): Tuple of augmented images and original labels
+        n_augmented: Number of images that were actually augmented
+    """
 
     function apply_augmentation_rotate(x_train, y_train, prob)
 
@@ -110,6 +126,21 @@ module Augmentation
         return (x_train_aug, y_train), n_augmented # returns trainingdata, new labels, actual augmentation rate
     end
 
+    """
+    apply_augmentation_full(x_train, y_train, prob)
+
+    Apply combination of augmentations (rotation and noise) to the training dataset with specified probability.
+
+    Takes: 
+        x_train: The original training images
+        y_train: The corresponding labels for the training images
+        prob: probability/chance to apply rotation to each image
+
+    Returns: 
+        (noise_data_x, noise_data_y): Tuple of data that was augmented with rotation and noise with their corresponding labels
+        noise_amount+rot_amount: Sum of the number of images that were actually augmented in each augmentation
+    """
+    
     function apply_augmentation_full(x_train, y_train, prob)
 
         (rot_data_x,rot_data_y), rot_amount = apply_augmentation_rotate(x_train, y_train, prob/4)
