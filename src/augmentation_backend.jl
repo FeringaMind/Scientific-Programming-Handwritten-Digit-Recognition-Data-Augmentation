@@ -40,6 +40,20 @@ module Augmentation
     end
 
     """
+    flip_image(image; dims)
+
+    mirrors the image along y-axis
+    Arguments:
+    image: 2D-Array
+    dims: axis which will be mirrored (1 = vertical, 2 = horizontal)
+    Returns:
+        Mirrored image    
+    """
+    function flip_image(image; dims = 2)
+        return reverse(image, dims)
+    end
+
+    """
     rotate_image(image, max_angle_deg)
 
     Rotates the image by a random angle in the range [-max_angle_deg, +max_angle_deg].
@@ -84,6 +98,40 @@ module Augmentation
                 aug_img = fn(img) # Apply the selected function to the image
                 aug_img_shp = reshape(aug_img, 28,28,1,1)
                 x_train_aug[:, :, 1, i] = aug_img_shp
+                n_augmented += 1
+            end
+        end
+
+        return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
+    end
+
+    """
+    apply_augmentation_flip(x_train, y_train, prob)
+    
+    flips image of the training dataset with specified probability.
+    
+    Takes: 
+        x_train: The original training images
+        y_train: The corresponding labels for the training images
+        prob: probability/chance to flip each image
+
+    Returns: 
+        (x_train_aug, y_train): Tuple of augmented images and original labels
+        n_augmented: Number of images that were actually augmented
+    """
+
+    function apply_augmentation_flip(x_train, y_train, prob)
+
+        x_train_aug = deepcopy(x_train)
+        n_samples = size(x_train_aug, 4) # Determine the number of training images
+
+        n_augmented = 0
+        for i in 1:n_samples
+            if rand() <= prob # augment with prob percentage
+                img = reshape(x_train_aug[:, :, 1, i], (28,28))
+                fn = flip_image
+                aug_img = fn(img)  # Apply selected function to the image
+                x_train_aug[:, :, 1, i] = reshape(flipped_img, 28, 28, 1, 1)
                 n_augmented += 1
             end
         end
