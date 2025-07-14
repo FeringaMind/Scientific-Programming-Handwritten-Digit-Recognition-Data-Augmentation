@@ -88,7 +88,7 @@ module Augmentation
             end
         end
 
-        return (x_train_aug, y_train), n_augmented # returns trainingdata, new labels, actual augmentation rate
+        return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
     end
 
     """
@@ -123,7 +123,7 @@ module Augmentation
             end
         end
 
-        return (x_train_aug, y_train), n_augmented # returns trainingdata, new labels, actual augmentation rate
+        return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
     end
 
     """
@@ -143,10 +143,10 @@ module Augmentation
     
     function apply_augmentation_full(x_train, y_train, prob)
 
-        (rot_data_x,rot_data_y), rot_amount = apply_augmentation_rotate(x_train, y_train, prob/4)
-        (noise_data_x,noise_data_y), noise_amount = apply_augmentation_noise(rot_data_x, rot_data_y, prob/4)
+        (rot_data_x,rot_data_y) = apply_augmentation_rotate(x_train, y_train, prob/4)
+        (noise_data_x,noise_data_y) = apply_augmentation_noise(rot_data_x, rot_data_y, prob/4)
 
-        return (noise_data_x,noise_data_y), noise_amount+rot_amount # returns trainingdata, new labels, actual augmentation rate
+        return (noise_data_x,noise_data_y) # returns trainingdata, new labels, actual augmentation rate
     end
 
     """
@@ -192,7 +192,7 @@ module Augmentation
                 y_train_aug[:, i] = y_train[:, i]
         end
 
-        return (x_train_aug, y_train_aug) #, n_augmented # returns trainingdata, new labels, actual augmentation rate
+        return (x_train_aug, y_train_aug)# returns trainingdata, new labels, actual augmentation rate
     end
 
     """

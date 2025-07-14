@@ -298,7 +298,7 @@ module LeNet5
     
             #Augmentation with aug_fun in each epoch
 
-            aug_data, amount_augmented = aug_fun(data[1], data[2], chance)
+            aug_data= aug_fun(data[1], data[2], chance)
 
             #combined_x = cat(xtrain, aug_data[1]; dims=ndims(xtrain)) #only for the add_augmentation
             #combined_y = cat(ytrain, aug_data_[2]; dims=ndims(ytrain))
