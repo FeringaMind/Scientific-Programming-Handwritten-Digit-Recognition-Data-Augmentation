@@ -55,7 +55,21 @@ module LeNet5
         end
     end
 
+    """
+    getData_train_pptt(;pptt)
 
+    Gets a percentage of the MNIST training data with evenly distributed label distribution.
+    Downloads (if needed) and returns a portion of the MNIST training data, based on the specified `pptt`.
+    Each class label from 0 to 9 will be represented proportionally to the dataset size, and data is randomly shuffled per label.
+
+    Takes:
+        pptt: Per-part-thousand of training data to return, from the full 60,000 MNIST train set.(pptt=10000 is 100%)
+
+    Returns:
+        xtrain, ytrain: 
+        xtrain is a 4D array of shape (28, 28, 1, N) containing image data normalized as Float32.
+        ytrain is a one-hot-encoded matrix with labels corresponding to the images
+    """
     function getData_train_pptt(;pptt=10000)
         # Disable manual confirmation of dataset download
         ENV["DATADEPS_ALWAYS_ACCEPT"] = "true" 
@@ -97,6 +111,17 @@ module LeNet5
 
     end
 
+    """
+    getData_train_amounts(;amounts)
+
+    Gets a specified number of MNIST samples per label and returns training data
+    
+    Takes: 
+        amounts: Array with 10 values each defining how many samples to use per class (0-9)
+
+    Returns:
+        xtrain, ytrain: x... is the data and y... represents the one-hot labels.
+    """
     function getData_train_amounts(;amounts)
         # Disable manual confirmation of dataset download
         ENV["DATADEPS_ALWAYS_ACCEPT"] = "true" 
