@@ -252,7 +252,7 @@ module LeNet5
         loss_history: The loss_history of the training
     """
 
-    function train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4, chance=0.1, aug_fun::Function= (a, b, y) -> ((a,b), 0))
+    function train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4, chance=0.1, aug_fun::Function= (a, b, y) -> (a,b))
 
         # setup data and model
         xtrain, ytrain = data
@@ -275,7 +275,11 @@ module LeNet5
 
             aug_data, amount_augmented = aug_fun(data[1], data[2], chance)
 
-            train_loader = Flux.DataLoader(aug_data, batchsize=batchsize, shuffle=true)
+            #combined_x = cat(xtrain, aug_data[1]; dims=ndims(xtrain)) #only for the add_augmentation
+            #combined_y = cat(ytrain, aug_data_[2]; dims=ndims(ytrain))
+            #combined = (combined_x, combined_y)
+
+            train_loader = Flux.DataLoader(aug_data, batchsize=batchsize, shuffle=true) #combined instead of aug_data for the add augmentation
 
             println(repeat("-", width))
             print("Epoch ($(epoch)/$(epochs))...")
@@ -301,7 +305,7 @@ module LeNet5
             total = length(actual)
             acc = 100 * correct / total
 
-            println("trained for $(round(time_train, digits=3))s | reached $(round(mean(epoch_loss_history), digits=3)) loss with $(round(acc, digits=3))% accuracy | $(amount_augmented) augmented")
+            println("trained for $(round(time_train, digits=3))s | reached $(round(mean(epoch_loss_history), digits=3)) loss with $(round(acc, digits=3))% accuracy")
         end
 
         y_hat = model(xtrain |> cpu) # get the models prediciton after training

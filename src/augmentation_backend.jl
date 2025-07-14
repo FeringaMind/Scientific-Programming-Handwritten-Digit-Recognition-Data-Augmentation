@@ -14,7 +14,7 @@ module Augmentation
     Returns:
         Augmented image with added noise.
     """
-    function add_noise(image, noise_level_range=0.05:0.2)
+    function add_noise(image, noise_level_range=0.0:0.05)
         noise_level = rand(noise_level_range)
         noise = noise_level * randn(size(image))
         return clamp.(image .+ noise, 0.0, 1.0) # ensures pixel value stays between 0.0 and 1.0
@@ -49,7 +49,7 @@ module Augmentation
     Returns:
         Rotated image.
     """
-    function rotate_image(image, max_angle_deg=15) 
+    function rotate_image(image, max_angle_deg=10) 
         angle_rad = rand(-max_angle_deg:max_angle_deg) * (π / 180) # selects random angle in degrees from the range [–20, +20] and converts it to radians
         center = Tuple(round.(Int, size(image) ./ 2)) # determine center of image
         tfm = recenter(ImageTransformations.Rotations.RotMatrix(angle_rad), center) # rotationmatrix around center
@@ -57,19 +57,20 @@ module Augmentation
     end
 
     """
-    apply_augmentation(x_train, y_train; prob, augmentation_fns)
+    apply_augmentation_noise(x_train, y_train, prob)
+    
+    Randomly applies noise to a portion of the training dataset with specified probability.
+    
+    Takes: 
+        x_train: The original training images
+        y_train: The corresponding labels for the training images
+        prob: probability/chance to apply noise to each image
 
-    Applies random data augmentation to a subset of the training data.
-    Arguments:
-        x_train: 4D array of shape (28,28,1,N), original training images
-        y_train: one-hot encoded labels of shape (10,N)
-        prob: probability that a given image is augmented (e.g., 0.1 = 10%)
-        augmentation_fns: list of augmentation functions to randomly choose from
-    Returns:
-        x_combined: original and augmented images
-        y_combined: corresponding labels
-        actual_prob: actual fraction of images that were augmented
+    Returns: 
+        (x_train_aug, y_train): Tuple of augmented images and original labels
+        n_augmented: Number of images that were actually augmented
     """
+
     function apply_augmentation_noise(x_train, y_train, prob)
 
         x_train_aug = deepcopy(x_train)
@@ -89,6 +90,21 @@ module Augmentation
 
         return (x_train_aug, y_train), n_augmented # returns trainingdata, new labels, actual augmentation rate
     end
+
+    """
+    apply_augmentation_rotate(x_train, y_train, prob)
+
+    Randomly applies rotation to a portion of the training dataset with specified probability.
+
+    Takes: 
+        x_train: The original training images
+        y_train: The corresponding labels for the training images
+        prob: probability/chance to apply rotation to each image
+
+    Returns: 
+        (x_train_aug, y_train): Tuple of augmented images and original labels
+        n_augmented: Number of images that were actually augmented
+    """
 
     function apply_augmentation_rotate(x_train, y_train, prob)
 
@@ -110,12 +126,85 @@ module Augmentation
         return (x_train_aug, y_train), n_augmented # returns trainingdata, new labels, actual augmentation rate
     end
 
+    """
+    apply_augmentation_full(x_train, y_train, prob)
+
+    Apply combination of augmentations (rotation and noise) to the training dataset with specified probability.
+
+    Takes: 
+        x_train: The original training images
+        y_train: The corresponding labels for the training images
+        prob: probability/chance to apply rotation to each image
+
+    Returns: 
+        (noise_data_x, noise_data_y): Tuple of data that was augmented with rotation and noise with their corresponding labels
+        noise_amount+rot_amount: Sum of the number of images that were actually augmented in each augmentation
+    """
+    
     function apply_augmentation_full(x_train, y_train, prob)
 
         (rot_data_x,rot_data_y), rot_amount = apply_augmentation_rotate(x_train, y_train, prob/4)
         (noise_data_x,noise_data_y), noise_amount = apply_augmentation_noise(rot_data_x, rot_data_y, prob/4)
 
         return (noise_data_x,noise_data_y), noise_amount+rot_amount # returns trainingdata, new labels, actual augmentation rate
+    end
+
+    """
+    #TODO description
+    """
+
+    function add_augmentation_noise(x_train, y_train, prob)
+
+        n_samples = size(x_train, 4) # Determine the number of training images
+        x_train_aug = Array{Float32}(undef, 28, 28, 1, n_samples)
+        y_train_aug = similar(y_train, size(y_train, 1), n_samples)
+
+        for i in 1:n_samples # augment every image
+                img = reshape(x_train[:, :, 1, i], (28,28))
+                fn = add_noise
+                aug_img = fn(img) # Apply the selected function to the image
+                aug_img_shp = reshape(aug_img, 28,28,1,1)
+
+                x_train_aug[:, :, :, i] = aug_img_shp
+                y_train_aug[:, i] = y_train[:, i]
+        end
+
+        return (x_train_aug, y_train_aug) # returns trainingdata, new labels, actual augmentation rate
+    end
+
+    """
+    #TODO description
+    """
+
+    function add_augmentation_rotate(x_train, y_train, prob)
+
+        n_samples = size(x_train, 4) # Determine the number of training images
+        x_train_aug = Array{Float32}(undef, 28, 28, 1, n_samples)
+        y_train_aug = similar(y_train, size(y_train, 1), n_samples)
+
+        for i in 1:n_samples
+                img = reshape(x_train[:, :, 1, i], (28,28))
+                fn = rotate_image
+                aug_img = fn(img) # Apply the selected function to the image
+                aug_img_shp = reshape(aug_img, 28,28,1,1)
+
+                x_train_aug[:, :, :, i] = aug_img_shp
+                y_train_aug[:, i] = y_train[:, i]
+        end
+
+        return (x_train_aug, y_train_aug) #, n_augmented # returns trainingdata, new labels, actual augmentation rate
+    end
+
+    """
+    #TODO description
+    """
+
+    function add_augmentation_full(x_train, y_train, prob)
+
+        (rot_data_x,rot_data_y) = add_augmentation_rotate(x_train, y_train, prob/4)
+        (noise_data_x,noise_data_y)= add_augmentation_noise(rot_data_x, rot_data_y, prob/4)
+
+        return (noise_data_x,noise_data_y)  # returns trainingdata, new labels, actual augmentation rate
     end
 
     ### Exports
