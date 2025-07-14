@@ -66,8 +66,10 @@ We start with loading the training and test data from the MNIST dataset, a colle
 
 # ╔═╡ 4bd85dd1-6661-4c23-a1c9-389da49187e8
 begin
-	data_part = LeNet5.getData_train(; amounts=fill(100,10))
+	data_part = LeNet5.getData_train(; amounts=fill(542,10))
 	data_full = LeNet5.getData_train(; amounts=fill(5421,10))
+
+	println(size(data_part[2]))
 
 	data_finished = rand() # marker that the data sets are prepared
 end
@@ -77,15 +79,17 @@ md"# TODO: HEADER AND DESC FOR VISUALIZE"
 
 # ╔═╡ 384bd25d-66f6-482e-935d-9c9708179690
 @time let 
+	#=
 	# get a small (10 each) data set to visualize the augmentation
 	data_small = LeNet5.getData_train(; amounts=fill(10,10))
 
 	# apply all kinds of augmentation
-	(data_rotate_x, data_rotate_y), amount_rotate = Augmentation.apply_augmentation_rotate(data_small[1], data_small[2], 0.5)
-	(data_noise_x, data_noise_y), amount_noise = Augmentation.apply_augmentation_noise(data_small[1], data_small[2], 0.5)
-	(data_all_x, data_all_y), amount_full = Augmentation.apply_augmentation_full(data_small[1], data_small[2], 0.5)
+	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_small[1], data_small[2], 0.5)
+	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_small[1], data_small[2], 0.5)
+	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_small[1], data_small[2], 0.5)
 
 	# create all figures
+
 	fig_aug_rot = LeNet5.makeFigurePluto_Images(500, 500, data_rotate_x, data_rotate_y)
 	fig_aug_noise = LeNet5.makeFigurePluto_Images(500, 500, data_noise_x, data_noise_y)
 	fig_aug_full = LeNet5.makeFigurePluto_Images(500, 500, data_all_x, data_all_y)
@@ -93,6 +97,7 @@ md"# TODO: HEADER AND DESC FOR VISUALIZE"
 	fig_aug_rot
 	fig_aug_noise
 	fig_aug_full
+	=#
 end
 
 # ╔═╡ 64fdd548-0994-4ccb-8a91-dc394f478926
@@ -150,14 +155,35 @@ With the model architecture in place, we now train the convolutional neural netw
 For this task, we employ the cross-entropy loss function, which is commonly used for multi-class classification problems. Let $\hat{\mathbf{y}}_{i}$ denote the predicted probability distribution for the i-th sample, and $\mathbf{y}_{i}$ the corresponding one-hot encoded ground truth label. The cross-entropy loss over a batch $\mathbb{N}$ of samples is defined as:
 """
 
+# ╔═╡ b5cb9b39-a573-4303-b4b4-760b029ac99e
+begin #=
+	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_part[1], data_part[2], 0.5)
+	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_part[1], data_part[2], 0.5)
+	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_part[1], data_part[2], 0.5)
+
+	x_dim = ndims(data_part[1])
+	y_dim = ndims(data_part[2])
+	
+	cdata_rotate_x = cat(data_part[1], data_rotate_x; dims=x_dim)
+	cdata_rotate_y = cat(data_part[2], data_rotate_y; dims=y_dim)
+	
+	cdata_noise_x = cat(data_part[1], data_noise_x; dims=x_dim)
+	cdata_noise_y = cat(data_part[2], data_noise_y; dims=y_dim)
+	
+	cdata_all_x = cat(data_part[1], data_all_x; dims=x_dim)
+	cdata_all_y = cat(data_part[2], data_all_y; dims=y_dim)
+	=#
+end
+
 # ╔═╡ 0377fa30-04f9-452e-8d3a-c32f9635a7ad
 begin
 	data_finished # start after the data sets are prepared 
 		
-	model_100_NoAug = LeNet5.createModel() 
-	model_100_Rotation = LeNet5.createModel() 
-	model_100_Noise = LeNet5.createModel() 
-	model_100_FullAug = LeNet5.createModel() 
+	model_NoAug = LeNet5.createModel() 
+	model_Rotation = LeNet5.createModel() 
+	model_Noise = LeNet5.createModel() 
+	model_Flip = LeNet5.createModel()
+	model_FullAug = LeNet5.createModel() 
 	model_full = LeNet5.createModel()
 
 	if isfile("./models/model_54210.bson")
@@ -166,14 +192,25 @@ begin
 		LeNet5.train!(model_full, data_full)
 		@save "./models/model_54210.bson" model_full
 	end
-		
-	LeNet5.train!(model_100_NoAug, data_part;batchsize=32, epochs=40, lambda=1e-2, eta=3e-4)
-	LeNet5.train!(model_100_Rotation, data_part;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_rotate, chance=0.5, lambda=1e-2, eta=3e-4)
-	LeNet5.train!(model_100_Noise, data_part;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_noise, chance=0.5, lambda=1e-2, eta=3e-4)
-	LeNet5.train!(model_100_FullAug, data_part;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_full, chance=0.5, lambda=1e-2, eta=3e-4)
+
+	aug_fun::Function = (a, b) -> (a,b)
+	
+	dict_models_funs = Dict(model_NoAug => aug_fun,
+							model_Rotation => Augmentation.apply_augmentation_rotate,
+							model_Noise => Augmentation.apply_augmentation_noise,
+							model_Flip => Augmentation.apply_augmentation_flip,
+							model_FullAug => Augmentation.apply_augmentation_full
+						   )
+
+	#=
+	LeNet5.train!(model_NoAug, data_part;batchsize=4, epochs=40, lambda=1e-2, eta=3e-4)
+	LeNet5.train!(model_Rotation, data_part;batchsize=4, epochs=40, aug_fun=Augmentation.apply_augmentation_rotate, chance=1, lambda=1e-2, eta=3e-4)
+	LeNet5.train!(model_Noise, data_part;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_noise, chance=1, lambda=1e-2, eta=3e-4)
+	LeNet5.train!(model_FullAug, data_part;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_full, chance=1, lambda=1e-2, eta=3e-4)
+	=#
+	LeNet5.train!(dict_models_funs, data_part; batchsize=32, epochs=30, lambda=1e-2, eta=3e-4)
 
 	training_finished=rand() # marker that training finished
-	
 end
 
 # ╔═╡ fe56b42b-28db-4dfc-84d6-1d4e80c6aaa0
@@ -237,13 +274,15 @@ begin
 	testingData = LeNet5.getData_test()
 	ycold = Flux.onecold(testingData[2], 0:9)
 
-	#Training the models differently
+	# Training the models differently
 
-	models_dict = Dict("model_100_NoAug" => model_100_NoAug,
-					   "model_100_Rotation" => model_100_Rotation,
-					   "model_100_Noise" => model_100_Noise,
-					   "model_100_FullAug" => model_100_FullAug,
-					   "model_Full" => model_full)
+	models_dict = Dict("model_NoAug" => model_NoAug,
+					   "model_Rotation" => model_Rotation,
+					   "model_Noise" => model_Noise,
+					   "model_Flip" => model_Flip,
+					   "model_FullAug" => model_FullAug,
+					   "model_Full" => model_full
+					   )
 
 
 	for (name,model) in models_dict
@@ -264,7 +303,6 @@ begin
 	end
 
 	testing_finished= rand()
-	
 end
 
 # ╔═╡ 233b873b-d5bb-49cd-a432-6be2be754387
@@ -317,59 +355,10 @@ To better understand the model’s performance, we construct a confusion matrix.
 The function below computes the confusion matrix by counting how often a true class j was predicted as class i:
 """
 
-# ╔═╡ 31a24ffb-ae44-4f04-ae42-0dee10b2d667
-# ╠═╡ disabled = true
-#=╠═╡
-#=
-begin
-	function confusionMatrix(ŷ, y)
-			confMat = zeros(Float64, (10,10))
-			for i=0:9, j=0:9
-				 confMat[i+1,j+1] = sum((ŷ .== i) .&& (y .== j))
-			end
-			return confMat
-	end
-	
-	confMat = confusionMatrix(preds, onecold(ytest, 0:9))
-end;
-=#
-  ╠═╡ =#
-
 # ╔═╡ db1f1008-27d5-4d35-ac06-05e61f86f692
 md"""
 We then visualize the matrix as a heatmap, with annotations to indicate the number of samples in each cell:
 """
-
-# ╔═╡ 927bb052-d335-447b-9dc6-634f610a322a
-# ╠═╡ disabled = true
-#=╠═╡
-#=
-begin
-	# Create a figure
-	fig3 = Figure(size = (600, 600))
-	
-	# Create an axis for the heatmap
-	ax3 = Axis(fig3[1, 1], 
-	          title = "Confusion Matrix", 
-	          xlabel = "predicted digit", 
-	          ylabel = "true digit", 
-	          xticks = 0:9, 
-	          yticks = 0:9)
-	
-	# Plot the heatmap
-	hm = heatmap!(ax3, 0:9, 0:9, confMat, colormap = :viridis)
-	
-	# Annotate the heatmap
-	for i in 0:9
-	    for j in 0:9
-	        text!(ax3, i, j, text = string(Int(confMat[i+1, j+1])), align = (:center, :center), color = :gray, fontsize = 20)
-	    end
-	end
-	Colorbar(fig3[1, 2], hm)
-	fig3
-end
-=#
-  ╠═╡ =#
 
 # ╔═╡ 350cc27f-995b-4064-9bfa-de0a3ea05ac1
 md"""
@@ -481,6 +470,7 @@ html"""
 # ╟─d28a4019-56f3-451b-8d86-676e410c9113
 # ╟─299f8e36-41ab-4536-91d8-5d4cac16aecb
 # ╟─06baaad7-d8b2-4a51-8421-2f8d1a8ae70b
+# ╠═b5cb9b39-a573-4303-b4b4-760b029ac99e
 # ╠═0377fa30-04f9-452e-8d3a-c32f9635a7ad
 # ╟─fe56b42b-28db-4dfc-84d6-1d4e80c6aaa0
 # ╟─83d17c51-34d2-4cc1-95b0-0a405c9f1499
@@ -495,9 +485,7 @@ html"""
 # ╟─30d0da08-634b-4334-ac8a-fc1eefeac7da
 # ╟─f63eaf02-ee42-467c-b00f-623582c5dac0
 # ╟─d183f9cc-a22f-487b-99ae-e8b60166e4b6
-# ╠═31a24ffb-ae44-4f04-ae42-0dee10b2d667
 # ╟─db1f1008-27d5-4d35-ac06-05e61f86f692
-# ╠═927bb052-d335-447b-9dc6-634f610a322a
 # ╟─350cc27f-995b-4064-9bfa-de0a3ea05ac1
 # ╠═21bc1b1b-3319-443b-9401-4a4c5cba6e4f
 # ╟─c6248257-45d3-4614-bbe0-f9d7938378ff

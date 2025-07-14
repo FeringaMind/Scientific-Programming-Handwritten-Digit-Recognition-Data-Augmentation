@@ -14,7 +14,7 @@ module Augmentation
     Returns:
         Augmented image with added noise.
     """
-    function add_noise(image, noise_level_range=0.0:0.05)
+    function add_noise(image, noise_level_range=-0.05:0.05)
         noise_level = rand(noise_level_range)
         noise = noise_level * randn(size(image))
         return clamp.(image .+ noise, 0.0, 1.0) # ensures pixel value stays between 0.0 and 1.0
@@ -49,8 +49,8 @@ module Augmentation
     Returns:
         Mirrored image    
     """
-    function flip_image(image; dims = 2)
-        return reverse(image, dims)
+    function flip_image(image; dims = 1)
+        return reverse(image, dims = dims)
     end
 
     """
@@ -85,21 +85,19 @@ module Augmentation
         n_augmented: Number of images that were actually augmented
     """
 
-    function apply_augmentation_noise(x_train, y_train, prob)
+    function apply_augmentation_noise(x_train, y_train)
 
         x_train_aug = deepcopy(x_train)
         n_samples = size(x_train_aug, 4) # Determine the number of training images
 
         n_augmented = 0
         for i in 1:n_samples
-            if rand(0.0:1.0) <= prob # augment with prob precentage
                 img = reshape(x_train_aug[:, :, 1, i], (28,28))
                 fn = add_noise
                 aug_img = fn(img) # Apply the selected function to the image
                 aug_img_shp = reshape(aug_img, 28,28,1,1)
                 x_train_aug[:, :, 1, i] = aug_img_shp
                 n_augmented += 1
-            end
         end
 
         return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
@@ -120,20 +118,18 @@ module Augmentation
         n_augmented: Number of images that were actually augmented
     """
 
-    function apply_augmentation_flip(x_train, y_train, prob)
+    function apply_augmentation_flip(x_train, y_train)
 
         x_train_aug = deepcopy(x_train)
         n_samples = size(x_train_aug, 4) # Determine the number of training images
 
         n_augmented = 0
         for i in 1:n_samples
-            if rand() <= prob # augment with prob percentage
                 img = reshape(x_train_aug[:, :, 1, i], (28,28))
                 fn = flip_image
                 aug_img = fn(img)  # Apply selected function to the image
-                x_train_aug[:, :, 1, i] = reshape(flipped_img, 28, 28, 1, 1)
+                x_train_aug[:, :, 1, i] = reshape(aug_img, 28, 28, 1, 1)
                 n_augmented += 1
-            end
         end
 
         return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
@@ -154,21 +150,19 @@ module Augmentation
         n_augmented: Number of images that were actually augmented
     """
 
-    function apply_augmentation_rotate(x_train, y_train, prob)
+    function apply_augmentation_rotate(x_train, y_train)
 
         x_train_aug = deepcopy(x_train)
         n_samples = size(x_train_aug, 4) # Determine the number of training images
 
         n_augmented = 0
         for i in 1:n_samples
-            if rand(0.0:1.0) <= prob # augment with prob precentage
                 img = reshape(x_train_aug[:, :, 1, i], (28,28))
                 fn = rotate_image
                 aug_img = fn(img) # Apply the selected function to the image
                 aug_img_shp = reshape(aug_img, 28,28,1,1)
                 x_train_aug[:, :, 1, i] = aug_img_shp
                 n_augmented += 1
-            end
         end
 
         return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
@@ -189,19 +183,32 @@ module Augmentation
         noise_amount+rot_amount: Sum of the number of images that were actually augmented in each augmentation
     """
     
-    function apply_augmentation_full(x_train, y_train, prob)
+    function apply_augmentation_full(x_train, y_train)
 
-        (rot_data_x,rot_data_y) = apply_augmentation_rotate(x_train, y_train, prob/4)
-        (noise_data_x,noise_data_y) = apply_augmentation_noise(rot_data_x, rot_data_y, prob/4)
+        fns = Dict( 1 => Augmentation.rotate_image,
+                    2 => Augmentation.add_noise,
+                    3 => Augmentation.flip_image)
 
-        return (noise_data_x,noise_data_y) # returns trainingdata, new labels, actual augmentation rate
+        n_samples = size(x_train, 4)
+        x_train_aug = deepcopy(x_train)
+
+        for i in n_samples
+            img = reshape(x_train_aug[:, :, 1, i], (28,28))
+            fn = fns[mod(i,3)]
+            aug_img = fn(img)
+            aug_img_shp = reshape(aug_img, 28,28,1,1)
+
+            x_train_aug[:, :, :, i] = aug_img_shp
+        end
+
+        return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
     end
 
     """
     #TODO description
     """
 
-    function add_augmentation_noise(x_train, y_train, prob)
+    function add_augmentation_noise(x_train, y_train)
 
         n_samples = size(x_train, 4) # Determine the number of training images
         x_train_aug = Array{Float32}(undef, 28, 28, 1, n_samples)
@@ -224,7 +231,7 @@ module Augmentation
     #TODO description
     """
 
-    function add_augmentation_rotate(x_train, y_train, prob)
+    function add_augmentation_rotate(x_train, y_train)
 
         n_samples = size(x_train, 4) # Determine the number of training images
         x_train_aug = Array{Float32}(undef, 28, 28, 1, n_samples)
@@ -246,17 +253,20 @@ module Augmentation
     """
     #TODO description
     """
+#=
+    function add_augmentation_full(x_train, y_train)
 
-    function add_augmentation_full(x_train, y_train, prob)
-
-        (rot_data_x,rot_data_y) = add_augmentation_rotate(x_train, y_train, prob/4)
-        (noise_data_x,noise_data_y)= add_augmentation_noise(rot_data_x, rot_data_y, prob/4)
 
         return (noise_data_x,noise_data_y)  # returns trainingdata, new labels, actual augmentation rate
     end
+=#
 
     ### Exports
-    export apply_augmentation
+    export apply_augmentation_full
+    export apply_augmentation_noise
+    export apply_augmentation_rotate
+    export apply_augmentation_flip
+    export flip_image
     export add_noise
     export zoom_image
     export rotate_image

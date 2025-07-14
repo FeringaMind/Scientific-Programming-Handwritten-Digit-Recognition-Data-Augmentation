@@ -277,7 +277,7 @@ module LeNet5
         loss_history: The loss_history of the training
     """
 
-    function train!(model, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4, chance=0.1, aug_fun::Function= (a, b, y) -> (a,b))
+    function train!(dict_model_funs, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
 
         # setup data and model
         xtrain, ytrain = data
@@ -285,7 +285,7 @@ module LeNet5
         loss_function = Flux.crossentropy
 
         opt_rule = OptimiserChain(WeightDecay(lambda), ADAMW(eta))
-        opt_state = Flux.setup(opt_rule, model)
+        opt_state = Flux.setup(opt_rule, first(keys(dict_model_funs)))
 
         width = displaysize(stdout)[2]  # columns (width of terminal)
         println("Training for $(epochs) epochs on $(size(xtrain)[end]) images with batchsize $(batchsize) | λ=$(lambda), η=$(eta)")
@@ -296,53 +296,56 @@ module LeNet5
         actual = Flux.onecold(ytrain |> cpu, 0:9)
         for epoch in 1:epochs
     
-            #Augmentation with aug_fun in each epoch
+            #-Augmentation with aug_fun for one model training
+            #aug_data= aug_fun(data[1], data[2], chance)
 
-            aug_data= aug_fun(data[1], data[2], chance)
-
+            #-Augmentattion with combined for one model training and add augmentation
             #combined_x = cat(xtrain, aug_data[1]; dims=ndims(xtrain)) #only for the add_augmentation
             #combined_y = cat(ytrain, aug_data_[2]; dims=ndims(ytrain))
             #combined = (combined_x, combined_y)
 
-            train_loader = Flux.DataLoader(aug_data, batchsize=batchsize, shuffle=true) #combined instead of aug_data for the add augmentation
+            train_loader = Flux.DataLoader(data, batchsize=batchsize, shuffle=true) #combined instead of aug_data for the add augmentation
 
             println(repeat("-", width))
             print("Epoch ($(epoch)/$(epochs))...")
 
             epoch_loss_history = []
 
-            time_train = @elapsed begin
-                for xy_cpu in train_loader
-                    x, y = xy_cpu |> cpu	# transfer data to device
-                    loss, grads = Flux.withgradient(model) do m
-                        loss_function(m(x), y)
+            for (model,funs) in dict_model_funs #training all models with the same batches but different augmentations
+
+                time_train = @elapsed begin
+                    for xy_cpu in train_loader
+                        
+                        x, y = xy_cpu |> cpu	# transfer data to device
+
+                        (x, y) = funs(x, y)
+                
+                        loss, grads = Flux.withgradient(model) do m
+                            loss_function(m(x), y)
+                        end
+
+                        push!(loss_history, loss)                        
+                        push!(epoch_loss_history, loss)
+                        Flux.update!(opt_state, model, grads[1]) # update parameters pf model
                     end
-                    push!(loss_history, loss)
-                    push!(epoch_loss_history, loss)
-                    Flux.update!(opt_state, model, grads[1]) # update parameters pf model
                 end
+                push!(time_history, time_train)
+
+                y_hat = model(xtrain |> cpu) # get the models prediction after training
+                preds = Flux.onecold(y_hat |> cpu, 0:9)
+                correct = count(preds .== actual)
+                total = length(actual)
+                acc = 100 * correct / total
+
+                println("trained for $(round(time_train, digits=3))s | reached $(round(mean(epoch_loss_history), digits=3)) loss with $(round(acc, digits=3))% accuracy")
             end
-            push!(time_history, time_train)
-
-            y_hat = model(xtrain |> cpu) # get the models prediciton after training
-            preds = Flux.onecold(y_hat |> cpu, 0:9)
-            correct = count(preds .== actual)
-            total = length(actual)
-            acc = 100 * correct / total
-
-            println("trained for $(round(time_train, digits=3))s | reached $(round(mean(epoch_loss_history), digits=3)) loss with $(round(acc, digits=3))% accuracy")
+            
         end
 
-        y_hat = model(xtrain |> cpu) # get the models prediciton after training
-        preds = Flux.onecold(y_hat |> cpu, 0:9)
-        correct = count(preds .== actual)
-        total = length(actual)
-        acc = 100 * correct / total
-
-        println(repeat("-", width))
-        println("Trained for a total of $(round(sum(time_history), digits=3))s | reached a $(round(loss_history[end], digits=3)) loss with $(round(acc, digits=3))% accuracy\n")
+        #println(repeat("-", width))
+        #println("Trained for a total of $(round(sum(time_history), digits=3))s | reached a $(round(loss_history[end], digits=3)) loss with $(round(acc, digits=3))% accuracy\n")
         
-        return loss_history
+        return 0 #loss_history
     end
 
 
