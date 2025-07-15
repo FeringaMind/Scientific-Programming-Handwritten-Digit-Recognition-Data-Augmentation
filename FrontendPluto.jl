@@ -78,27 +78,37 @@ end
 md"# TODO: HEADER AND DESC FOR VISUALIZE"
 
 # ╔═╡ 384bd25d-66f6-482e-935d-9c9708179690
-@time let 
-	#=
+#=
+@time begin
 	# get a small (10 each) data set to visualize the augmentation
 	data_small = LeNet5.getData_train(; amounts=fill(10,10))
 
 	# apply all kinds of augmentation
-	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_small[1], data_small[2], 0.5)
-	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_small[1], data_small[2], 0.5)
-	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_small[1], data_small[2], 0.5)
+	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_small[1], data_small[2])
+	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_small[1], data_small[2])
+	(data_flip_x, data_flip_y)= Augmentation.apply_augmentation_flip(data_small[1], data_small[2])
+	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_small[1], data_small[2])
 
 	# create all figures
-
 	fig_aug_rot = LeNet5.makeFigurePluto_Images(500, 500, data_rotate_x, data_rotate_y)
 	fig_aug_noise = LeNet5.makeFigurePluto_Images(500, 500, data_noise_x, data_noise_y)
+	fig_aug_flip = LeNet5.makeFigurePluto_Images(500, 500, data_flip_x, data_flip_y)
 	fig_aug_full = LeNet5.makeFigurePluto_Images(500, 500, data_all_x, data_all_y)
 	
 	fig_aug_rot
-	fig_aug_noise
-	fig_aug_full
-	=#
+	
+	
 end
+=#
+
+# ╔═╡ dc548758-a391-4fce-8c9c-5b4ccfd04994
+#fig_aug_noise
+
+# ╔═╡ 04a45c1c-79a8-4d72-8cae-aeedef777f69
+#fig_aug_flip
+
+# ╔═╡ ee180bc9-afd1-4fb5-8d3c-e74eec4829a1
+#fig_aug_full
 
 # ╔═╡ 64fdd548-0994-4ccb-8a91-dc394f478926
 md"""
@@ -157,9 +167,9 @@ For this task, we employ the cross-entropy loss function, which is commonly used
 
 # ╔═╡ b5cb9b39-a573-4303-b4b4-760b029ac99e
 begin #=
-	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_part[1], data_part[2], 0.5)
-	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_part[1], data_part[2], 0.5)
-	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_part[1], data_part[2], 0.5)
+	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_part[1], data_part[2])
+	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_part[1], data_part[2])
+	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_part[1], data_part[2])
 
 	x_dim = ndims(data_part[1])
 	y_dim = ndims(data_part[2])
@@ -178,6 +188,7 @@ end
 # ╔═╡ 0377fa30-04f9-452e-8d3a-c32f9635a7ad
 begin
 	data_finished # start after the data sets are prepared 
+	#=
 		
 	model_NoAug = LeNet5.createModel() 
 	model_Rotation = LeNet5.createModel() 
@@ -210,6 +221,7 @@ begin
 	=#
 	LeNet5.train!(dict_models_funs, data_part; batchsize=32, epochs=30, lambda=1e-2, eta=3e-4)
 
+	=#
 	training_finished=rand() # marker that training finished
 end
 
@@ -270,6 +282,7 @@ To evaluate the trained model, we apply it to the MNIST test set and generate pr
 # ╔═╡ 9ebf65a7-41f0-48e0-a67e-4789858fdc5e
 begin	
 	training_finished # activate after training finished
+	#=
 	
 	testingData = LeNet5.getData_test()
 	ycold = Flux.onecold(testingData[2], 0:9)
@@ -301,7 +314,7 @@ begin
 		println("     $(round(maximum(v)- minimum(v), digits=2))")
 		
 	end
-
+=#
 	testing_finished= rand()
 end
 
@@ -463,6 +476,9 @@ html"""
 # ╠═4bd85dd1-6661-4c23-a1c9-389da49187e8
 # ╟─a1e56527-4065-477a-941d-9afa5d8c5628
 # ╠═384bd25d-66f6-482e-935d-9c9708179690
+# ╠═dc548758-a391-4fce-8c9c-5b4ccfd04994
+# ╠═04a45c1c-79a8-4d72-8cae-aeedef777f69
+# ╠═ee180bc9-afd1-4fb5-8d3c-e74eec4829a1
 # ╟─64fdd548-0994-4ccb-8a91-dc394f478926
 # ╟─94da4f46-f348-4148-b7c5-7e01b901f356
 # ╟─69ae3d42-9d1b-4393-9b88-9a3930b03ac9
