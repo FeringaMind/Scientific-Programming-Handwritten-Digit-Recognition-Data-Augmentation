@@ -192,9 +192,9 @@ module Augmentation
         n_samples = size(x_train, 4)
         x_train_aug = deepcopy(x_train)
 
-        for i in n_samples
+        for i in 1:n_samples
             img = reshape(x_train_aug[:, :, 1, i], (28,28))
-            fn = fns[mod(i,3)]
+            fn = fns[rand(1:2)] #oder mod(i,2)+1
             aug_img = fn(img)
             aug_img_shp = reshape(aug_img, 28,28,1,1)
 

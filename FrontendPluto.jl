@@ -78,10 +78,9 @@ end
 md"# TODO: HEADER AND DESC FOR VISUALIZE"
 
 # ╔═╡ 384bd25d-66f6-482e-935d-9c9708179690
-#=
 @time begin
 	# get a small (10 each) data set to visualize the augmentation
-	data_small = LeNet5.getData_train(; amounts=fill(10,10))
+	data_small = LeNet5.getData_train(; amounts=fill(1,10))
 
 	# apply all kinds of augmentation
 	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_small[1], data_small[2])
@@ -90,25 +89,24 @@ md"# TODO: HEADER AND DESC FOR VISUALIZE"
 	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_small[1], data_small[2])
 
 	# create all figures
-	fig_aug_rot = LeNet5.makeFigurePluto_Images(500, 500, data_rotate_x, data_rotate_y)
-	fig_aug_noise = LeNet5.makeFigurePluto_Images(500, 500, data_noise_x, data_noise_y)
-	fig_aug_flip = LeNet5.makeFigurePluto_Images(500, 500, data_flip_x, data_flip_y)
-	fig_aug_full = LeNet5.makeFigurePluto_Images(500, 500, data_all_x, data_all_y)
-	
-	fig_aug_rot
-	
-	
+	fig_aug_rot = LeNet5.makeFigurePluto_Images(1200,150,data_rotate_x, data_rotate_y)
+	fig_aug_noise = LeNet5.makeFigurePluto_Images(1200,150,data_noise_x, data_noise_y)
+	fig_aug_flip = LeNet5.makeFigurePluto_Images(1200,150,data_flip_x, data_flip_y)
+	fig_aug_full = LeNet5.makeFigurePluto_Images(1200,150,data_all_x, data_all_y)
+	fig_no_aug = LeNet5.makeFigurePluto_Images(1200,150,data_small[1],data_small[2])
 end
-=#
+
+# ╔═╡ 048d5fb2-8cf8-4a61-bfc8-c97fedfa30d8
+fig_aug_rot
 
 # ╔═╡ dc548758-a391-4fce-8c9c-5b4ccfd04994
-#fig_aug_noise
+fig_aug_noise
 
 # ╔═╡ 04a45c1c-79a8-4d72-8cae-aeedef777f69
-#fig_aug_flip
+fig_aug_flip
 
 # ╔═╡ ee180bc9-afd1-4fb5-8d3c-e74eec4829a1
-#fig_aug_full
+fig_aug_full
 
 # ╔═╡ 64fdd548-0994-4ccb-8a91-dc394f478926
 md"""
@@ -166,7 +164,7 @@ For this task, we employ the cross-entropy loss function, which is commonly used
 """
 
 # ╔═╡ b5cb9b39-a573-4303-b4b4-760b029ac99e
-begin #=
+begin #= only for combined augmentation
 	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_part[1], data_part[2])
 	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_part[1], data_part[2])
 	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_part[1], data_part[2])
@@ -188,7 +186,6 @@ end
 # ╔═╡ 0377fa30-04f9-452e-8d3a-c32f9635a7ad
 begin
 	data_finished # start after the data sets are prepared 
-	#=
 		
 	model_NoAug = LeNet5.createModel() 
 	model_Rotation = LeNet5.createModel() 
@@ -221,7 +218,6 @@ begin
 	=#
 	LeNet5.train!(dict_models_funs, data_part; batchsize=32, epochs=30, lambda=1e-2, eta=3e-4)
 
-	=#
 	training_finished=rand() # marker that training finished
 end
 
@@ -282,7 +278,6 @@ To evaluate the trained model, we apply it to the MNIST test set and generate pr
 # ╔═╡ 9ebf65a7-41f0-48e0-a67e-4789858fdc5e
 begin	
 	training_finished # activate after training finished
-	#=
 	
 	testingData = LeNet5.getData_test()
 	ycold = Flux.onecold(testingData[2], 0:9)
@@ -314,7 +309,6 @@ begin
 		println("     $(round(maximum(v)- minimum(v), digits=2))")
 		
 	end
-=#
 	testing_finished= rand()
 end
 
@@ -379,25 +373,40 @@ From the confusion matrix, we observe that the model correctly classifies most d
 """
 
 # ╔═╡ 21bc1b1b-3319-443b-9401-4a4c5cba6e4f
-# accuracy = tr(confMat) / sum(confMat)
+begin
+	pred_rot = LeNet5.test(model_Rotation, testingData)
+	makeFigurePluto_ConfusionMatrix(pred_rot, ycold; x_size=600, y_size=600)
+end
 
-# ╔═╡ c6248257-45d3-4614-bbe0-f9d7938378ff
-md"""
-In this case, the model achieves an accuracy of 99.2%, demonstrating excellent performance on the MNIST test set. While the results are strong, further improvements are still possible — particularly through more advanced architectures, additional regularization, or targeted handling of rare misclassifications.
-"""
+# ╔═╡ 5920c466-ebf5-4d66-9347-10a1ebe29efc
+begin
+	pred_noise = LeNet5.test(model_Noise, testingData)
+	makeFigurePluto_ConfusionMatrix(pred_noise, ycold; x_size=600, y_size=600)
+end
 
-# ╔═╡ 0908e278-8d6e-4ffa-9a0b-d90625397fd0
-md"""
-### Data Augmentation
-In modern deep learning, the quality and diversity of training data often outweigh incremental model improvements. On MNIST—a dataset of 60,000 training and 10,000 test images—error rates have dropped below 0.3%, with simple CNN ensembles reaching up to 99.91% accuracy. This suggests that, beyond a point, further gains depend more on richer data than on new architectures.
+# ╔═╡ 5bf133d2-b92c-41e9-9ac4-04b2f3a6d873
+begin
+	pred_flip = LeNet5.test(model_Flip, testingData)
+	makeFigurePluto_ConfusionMatrix(pred_flip, ycold; x_size=600, y_size=600)
+end
 
-When acquiring new data is impractical or costly, data augmentation becomes essential. This technique applies label-preserving transformations—such as small rotations, translations, noise injection, or elastic distortions—to generate new training examples. The result is improved model generalization and robustness, without requiring additional labeled data.
-"""
+# ╔═╡ 091e2630-94df-4f6a-922b-2599e845de14
+begin
+	pred_aug_full = LeNet5.test(model_FullAug, testingData)
+	makeFigurePluto_ConfusionMatrix(pred_aug_full, ycold; x_size=600, y_size=600)
+end
 
-# ╔═╡ 0877032d-30ef-4e4c-8e68-c01a698a9fec
-md"""
-The following example illustrates a simple form of augmentation by adding random Gaussian noise to an input image:
-"""
+# ╔═╡ fa6747bf-f695-4635-b00b-0297ef662883
+begin
+	pred_no_aug = LeNet5.test(model_NoAug, testingData)
+	makeFigurePluto_ConfusionMatrix(pred_no_aug, ycold; x_size=600, y_size=600)
+end
+
+# ╔═╡ 2286f5d2-cf26-415d-a937-31d335734e00
+begin
+	pred = LeNet5.test(model_full, testingData)
+	makeFigurePluto_ConfusionMatrix(pred, ycold; x_size=600, y_size=600)
+end
 
 # ╔═╡ 1e4ae0e7-5c65-4cd7-9f53-0708a8e40351
 #=
@@ -415,27 +424,6 @@ begin
 end
 =#
 
-# ╔═╡ 8020da41-767d-402e-8cd9-c3c593cd7ee9
-md"""
-This approach can significantly enhance performance, especially in low-data regimes or when preparing a model for deployment in variable real-world conditions.
-"""
-
-# ╔═╡ ab0b4009-6a3b-4f0b-a6d9-150790509f45
-md"""
-### Generalization
-A well-performing classifier should not only achieve high accuracy on the test set but also generalize effectively to new, unseen data — especially under real-world conditions.
-
-To illustrate this, we test the model on a digit image written by hand and loaded from an external file. Surprisingly, the model fails to predict correctly, despite high test set performance. This discrepancy points to a distribution shift: the input image differs subtly but significantly from the data distribution the model was trained on.
-
-Such shifts are common in deployment scenarios and can severely affect model reliability. Addressing this requires techniques such as domain adaptation, robust training, or expanding the training distribution (e.g., via data augmentation).
-"""
-
-# ╔═╡ fdd7faa3-8427-4486-af48-a1bb2fed758a
-# ╠═╡ disabled = true
-#=╠═╡
-#im0 = reshape(Float32.(load("testImage.png")) |> transpose, 28,28,1,:);
-  ╠═╡ =#
-
 # ╔═╡ f90ab7e0-1554-463b-8545-870f6f6d469d
 #=
 begin
@@ -449,11 +437,6 @@ begin
 	fig5
 end
 =#
-
-# ╔═╡ 79af0a3c-70c1-4663-a9ef-4e848d01e65d
-md"""
-This example underscores the importance of testing on realistic, out-of-distribution samples—especially if the model is intended for deployment in dynamic or uncontrolled environments.
-"""
 
 # ╔═╡ 65652a6f-8299-4e0d-991d-c2c4abf35821
 html"""
@@ -475,7 +458,8 @@ html"""
 # ╟─8c7603fa-07a7-4435-b80b-562f7ada38ee
 # ╠═4bd85dd1-6661-4c23-a1c9-389da49187e8
 # ╟─a1e56527-4065-477a-941d-9afa5d8c5628
-# ╠═384bd25d-66f6-482e-935d-9c9708179690
+# ╟─384bd25d-66f6-482e-935d-9c9708179690
+# ╠═048d5fb2-8cf8-4a61-bfc8-c97fedfa30d8
 # ╠═dc548758-a391-4fce-8c9c-5b4ccfd04994
 # ╠═04a45c1c-79a8-4d72-8cae-aeedef777f69
 # ╠═ee180bc9-afd1-4fb5-8d3c-e74eec4829a1
@@ -504,13 +488,11 @@ html"""
 # ╟─db1f1008-27d5-4d35-ac06-05e61f86f692
 # ╟─350cc27f-995b-4064-9bfa-de0a3ea05ac1
 # ╠═21bc1b1b-3319-443b-9401-4a4c5cba6e4f
-# ╟─c6248257-45d3-4614-bbe0-f9d7938378ff
-# ╟─0908e278-8d6e-4ffa-9a0b-d90625397fd0
-# ╟─0877032d-30ef-4e4c-8e68-c01a698a9fec
-# ╟─1e4ae0e7-5c65-4cd7-9f53-0708a8e40351
-# ╟─8020da41-767d-402e-8cd9-c3c593cd7ee9
-# ╟─ab0b4009-6a3b-4f0b-a6d9-150790509f45
-# ╠═fdd7faa3-8427-4486-af48-a1bb2fed758a
+# ╠═5920c466-ebf5-4d66-9347-10a1ebe29efc
+# ╠═5bf133d2-b92c-41e9-9ac4-04b2f3a6d873
+# ╠═091e2630-94df-4f6a-922b-2599e845de14
+# ╠═fa6747bf-f695-4635-b00b-0297ef662883
+# ╠═2286f5d2-cf26-415d-a937-31d335734e00
+# ╠═1e4ae0e7-5c65-4cd7-9f53-0708a8e40351
 # ╟─f90ab7e0-1554-463b-8545-870f6f6d469d
-# ╟─79af0a3c-70c1-4663-a9ef-4e848d01e65d
 # ╟─65652a6f-8299-4e0d-991d-c2c4abf35821

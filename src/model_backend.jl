@@ -198,8 +198,8 @@ module LeNet5
         fig: The figure
     """
     function makeFigurePluto_Images(x_size, y_size, x_set, y_set)
-	    fig = Figure(size = (x_size, y_size), fontsize=8)
-        row_size = round(Int, (size(y_set)[2])/10)
+	    fig = Figure(size = (x_size, y_size), fontsize=20)
+        row_size = round(Int, (size(y_set)[2]))
 	    for i in 1:size(y_set)[2]
 	        ax = GLMakie.Axis(fig[floor(Int, (i-1)÷row_size)+1, floor(Int, (i-1)%row_size)+1], title = "label=$(Flux.onecold(y_set[:, i], 0:9))")
 		    hidedecorations!(ax)
@@ -229,8 +229,6 @@ module LeNet5
         for i=0:9, j=0:9
             confMat[i+1,j+1] = sum((y_hat .== i) .&& (y .== j))
         end
-        
-        confMat = confusionMatrix(preds, onecold(ytest, 0:9))
 
         # Create a figure
         fig = Figure(size = (x_size, y_size))
@@ -307,7 +305,7 @@ module LeNet5
             train_loader = Flux.DataLoader(data, batchsize=batchsize, shuffle=true) #combined instead of aug_data for the add augmentation
 
             println(repeat("-", width))
-            print("Epoch ($(epoch)/$(epochs))...")
+            println("Epoch ($(epoch)/$(epochs))...")
 
             epoch_loss_history = []
 
