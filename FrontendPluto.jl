@@ -221,6 +221,9 @@ begin
 	training_finished=rand() # marker that training finished
 end
 
+# ╔═╡ 4b121f12-f8b9-47ef-b131-c7be2a4b194e
+
+
 # ╔═╡ fe56b42b-28db-4dfc-84d6-1d4e80c6aaa0
 md"""
 $-\frac{1}{N} \sum_{i=1}^{N} y_i \cdot \log(\hat{y}_i)$
@@ -315,11 +318,6 @@ end
 # ╔═╡ 233b873b-d5bb-49cd-a432-6be2be754387
 # @bind plotslice2 PlutoUI.Slider(1:div(size(ytest,2),12))
 
-# ╔═╡ 3e4013a4-dc76-4715-8e51-12cd24c48949
-md"""
-We visualize a selection of 12 test images along with their predicted labels. Each image is displayed in grayscale, and the predicted digit is shown in the title:
-"""
-
 # ╔═╡ 3aea78df-5212-4ae8-8c67-6406d8c20591
 #=
 begin
@@ -333,25 +331,6 @@ begin
 	fig2
 end
 =#
-
-# ╔═╡ 30d0da08-634b-4334-ac8a-fc1eefeac7da
-md"""
-This visual inspection offers an intuitive way to assess prediction quality and spot potential misclassifications.
-"""
-
-# ╔═╡ f63eaf02-ee42-467c-b00f-623582c5dac0
-md"""
-## 5. Conclusion
-
-This project demonstrates how a simple convolutional neural network can be trained for handwritten digit recognition using Julia and the Flux library. While the implementation serves as a minimal working example, it omits several important aspects of practical machine learning workflows, including:
-
-* **Model evaluation:** How to quantitatively monitor performance, measure accuracy, and determine when to stop training.
-* **Hyperparameter tuning:** Adjusting parameters such as learning rate and regularization strength to optimize results.
-* **Robustness and generalization:** Analyzing class-wise accuracy and testing how the model performs on data that differs from the training set.
-* **Architectural improvements:** Exploring deeper or more advanced network structures to enhance performance.
-
-These topics provide natural next steps for improving both model quality and experimental rigor in more advanced projects.
-"""
 
 # ╔═╡ d183f9cc-a22f-487b-99ae-e8b60166e4b6
 md"""
@@ -407,6 +386,20 @@ begin
 	pred = LeNet5.test(model_full, testingData)
 	makeFigurePluto_ConfusionMatrix(pred, ycold; x_size=600, y_size=600)
 end
+
+# ╔═╡ f63eaf02-ee42-467c-b00f-623582c5dac0
+md"""
+## 5. Conclusion
+
+This project demonstrates how a simple convolutional neural network can be trained for handwritten digit recognition using Julia and the Flux library. While the implementation serves as a minimal working example, it omits several important aspects of practical machine learning workflows, including:
+
+* **Model evaluation:** How to quantitatively monitor performance, measure accuracy, and determine when to stop training.
+* **Hyperparameter tuning:** Adjusting parameters such as learning rate and regularization strength to optimize results.
+* **Robustness and generalization:** Analyzing class-wise accuracy and testing how the model performs on data that differs from the training set.
+* **Architectural improvements:** Exploring deeper or more advanced network structures to enhance performance.
+
+These topics provide natural next steps for improving both model quality and experimental rigor in more advanced projects.
+"""
 
 # ╔═╡ 1e4ae0e7-5c65-4cd7-9f53-0708a8e40351
 #=
@@ -472,6 +465,7 @@ html"""
 # ╟─06baaad7-d8b2-4a51-8421-2f8d1a8ae70b
 # ╠═b5cb9b39-a573-4303-b4b4-760b029ac99e
 # ╠═0377fa30-04f9-452e-8d3a-c32f9635a7ad
+# ╟─4b121f12-f8b9-47ef-b131-c7be2a4b194e
 # ╟─fe56b42b-28db-4dfc-84d6-1d4e80c6aaa0
 # ╟─83d17c51-34d2-4cc1-95b0-0a405c9f1499
 # ╟─3f93e564-f110-40db-85ee-58bfd31c791e
@@ -480,11 +474,8 @@ html"""
 # ╟─917fa567-43b4-4a5a-a7dd-52de16e4651f
 # ╠═9ebf65a7-41f0-48e0-a67e-4789858fdc5e
 # ╟─233b873b-d5bb-49cd-a432-6be2be754387
-# ╟─3e4013a4-dc76-4715-8e51-12cd24c48949
 # ╟─3aea78df-5212-4ae8-8c67-6406d8c20591
-# ╟─30d0da08-634b-4334-ac8a-fc1eefeac7da
-# ╟─f63eaf02-ee42-467c-b00f-623582c5dac0
-# ╟─d183f9cc-a22f-487b-99ae-e8b60166e4b6
+# ╠═d183f9cc-a22f-487b-99ae-e8b60166e4b6
 # ╟─db1f1008-27d5-4d35-ac06-05e61f86f692
 # ╟─350cc27f-995b-4064-9bfa-de0a3ea05ac1
 # ╠═21bc1b1b-3319-443b-9401-4a4c5cba6e4f
@@ -493,6 +484,7 @@ html"""
 # ╠═091e2630-94df-4f6a-922b-2599e845de14
 # ╠═fa6747bf-f695-4635-b00b-0297ef662883
 # ╠═2286f5d2-cf26-415d-a937-31d335734e00
-# ╠═1e4ae0e7-5c65-4cd7-9f53-0708a8e40351
+# ╟─f63eaf02-ee42-467c-b00f-623582c5dac0
+# ╟─1e4ae0e7-5c65-4cd7-9f53-0708a8e40351
 # ╟─f90ab7e0-1554-463b-8545-870f6f6d469d
 # ╟─65652a6f-8299-4e0d-991d-c2c4abf35821
