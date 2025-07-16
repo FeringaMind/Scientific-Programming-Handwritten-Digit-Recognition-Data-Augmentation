@@ -47,13 +47,13 @@ module LeNet5
         xtrain, ytrain: x... is the data and y... represents the labels.
     """
     function getData_train(;pptt=10000, amounts=missing)
-
         if ismissing(amounts)
             return getData_train_pptt(pptt=pptt)
         else
             return getData_train_amounts(amounts=amounts)
         end
     end
+
 
     """
     getData_train_pptt(;pptt)
@@ -110,6 +110,7 @@ module LeNet5
         return xtrain, ytrain
 
     end
+
 
     """
     getData_train_amounts(;amounts)
@@ -209,6 +210,7 @@ module LeNet5
 	    return fig
     end
 
+
     """
     makeFigurePluto_ConfusionMatrix(y_hat,y)
 
@@ -275,7 +277,6 @@ module LeNet5
     Returns:
         loss_history: The loss_history of the training
     """
-
     function train!(dict_model_funs, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
 
         # setup data and model
@@ -284,7 +285,6 @@ module LeNet5
         loss_function = Flux.crossentropy
 
         opt_rule = OptimiserChain(WeightDecay(lambda), ADAMW(eta))
-        opt_state = Flux.setup(opt_rule, first(keys(dict_model_funs)))
 
         width = displaysize(stdout)[2]  # columns (width of terminal)
         println("Training for $(epochs) epochs on $(size(xtrain)[end]) images with batchsize $(batchsize) | λ=$(lambda), η=$(eta)")
@@ -310,13 +310,12 @@ module LeNet5
 
             epoch_loss_history = []
 
-            for (model,funs) in dict_model_funs #training all models with the same batches but different augmentations
-
+            for (model,(funs, name)) in dict_model_funs #training all models with the same batches but different augmentations
+                opt_state = Flux.setup(opt_rule, model)
                 time_train = @elapsed begin
                     for xy_cpu in train_loader
                         
                         x, y = xy_cpu |> cpu	# transfer data to device
-
                         (x, y) = funs(x, y)
                 
                         loss, grads = Flux.withgradient(model) do m
@@ -373,6 +372,7 @@ module LeNet5
         return preds
     end
 
+
     """
     accuracy_per_class(preds, labels)
 
@@ -396,6 +396,7 @@ module LeNet5
         return class_accuracies
     end
 
+
     """
     overall_accuracy(preds, labels)
 
@@ -413,6 +414,7 @@ module LeNet5
         return correct / length(labels) * 100 # compute pptt of accuracy of correct predictions
     end
     
+
     ### Exports
     export createModel
     export getData_train

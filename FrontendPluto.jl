@@ -74,13 +74,13 @@ md"# Digit Recognition - Data Augmentation"
 md"## 1 - Introduction"
 
 # ╔═╡ 9dc2706a-7b71-4576-bb04-68c7aacbb9ad
-
+# TBD
 
 # ╔═╡ dc6459b8-92a2-45c1-8378-5089def92f15
 md"## 2 - Motivation"
 
 # ╔═╡ 4b142462-d76d-4948-8de0-b32b65f4f0b7
-
+# TBD
 
 # ╔═╡ 51c66468-da97-42a0-b594-e1a531ce66a2
 md"## 3 - Data Augmentation Methods"
@@ -140,22 +140,78 @@ md"## 4 - Trained Models"
 
 # ╔═╡ 4bd85dd1-6661-4c23-a1c9-389da49187e8
 begin
-	data_part = LeNet5.getData_train(; amounts=fill(542,10))
 	data_full = LeNet5.getData_train(; amounts=fill(5421,10))
 
 	data_loading_finished = rand() # marker that the data sets are prepared
 	nothing
 end
 
-# ╔═╡ 0377fa30-04f9-452e-8d3a-c32f9635a7ad
-begin
-	data_loading_finished # start after the data sets are prepared 
-		
+# ╔═╡ 33da904c-a964-4305-a5cd-eff2fe6543c9
+function train_all_models(; runs=1)
+	### Initilize all models
 	model_NoAug = LeNet5.createModel() 
 	model_Rotation = LeNet5.createModel() 
 	model_Noise = LeNet5.createModel() 
 	model_Flip = LeNet5.createModel()
-	model_FullAug = LeNet5.createModel() 
+	model_FullAug = LeNet5.createModel()
+
+	data_part = LeNet5.getData_train(; amounts=fill(542,10))
+
+	
+	### Initilize the augmentation functions
+	aug_fun::Function = (a, b) -> (a, b)
+	dict_models_funs = Dict(model_NoAug 	=> (aug_fun, 									"model_NoAug"),
+							model_Rotation 	=> (Augmentation.apply_augmentation_rotate, 	"model_Rotation"),
+							model_Noise 	=> (Augmentation.apply_augmentation_noise, 		"model_Noise"),
+							model_Flip 		=> (Augmentation.apply_augmentation_flip, 		"model_Flip"),
+							model_FullAug 	=> (Augmentation.apply_augmentation_full, 		"model_FullAug"))
+
+	
+	### Initilize the values for testing
+	testingData = LeNet5.getData_test()
+	ycold = Flux.onecold(testingData[2], 0:9)
+	
+	
+	### Initilize the vectors to save all values
+	model_accuracies = Dict{String, Vector{Dict{Int, Tuple{Float64, Int}}}}()
+	for (model, (func, name)) in dict_models_funs
+    	model_accuracies[name] = [Dict(k => (0.0, 0) for k in -1:9) for _ in 1:runs]
+	end
+	
+	### Do runs number of training runs
+	for run in 1:runs
+		### Get training data
+		data_part = LeNet5.getData_train(; amounts=fill(542,10))
+		
+		### Train the models
+		LeNet5.train!(dict_models_funs, data_part; batchsize=32, epochs=30, lambda=1e-2, eta=3e-4)
+
+		### Test the models
+		for (model, (f, name)) in dict_models_funs
+			pred = LeNet5.test(model, testingData)
+			acc = LeNet5.overall_accuracy(pred, ycold)
+			accN = LeNet5.accuracy_per_class(pred, ycold)
+			accN[-1] = (acc, 0)
+
+			model_accuracies[name][run] = accN
+		end
+
+		### Reset all models
+		model_NoAug = LeNet5.createModel()
+		model_Rotation = LeNet5.createModel()
+		model_Noise = LeNet5.createModel()
+		model_Flip = LeNet5.createModel()
+		model_FullAug = LeNet5.createModel()
+	end
+
+	return model_accuracies
+end
+
+# ╔═╡ 0377fa30-04f9-452e-8d3a-c32f9635a7ad
+begin
+	data_loading_finished # start after the data sets are prepared 
+
+	### Create and load the fully trained model
 	model_full = LeNet5.createModel()
 
 	if isfile("./models/model_54210.bson")
@@ -165,18 +221,12 @@ begin
 		@save "./models/model_54210.bson" model_full
 	end
 
-	aug_fun::Function = (a, b) -> (a,b)
-	
-	dict_models_funs = Dict(model_NoAug => aug_fun,
-							model_Rotation => Augmentation.apply_augmentation_rotate,
-							model_Noise => Augmentation.apply_augmentation_noise,
-							model_Flip => Augmentation.apply_augmentation_flip,
-							model_FullAug => Augmentation.apply_augmentation_full
-						   )
 
-	LeNet5.train!(dict_models_funs, data_part; batchsize=32, epochs=30, lambda=1e-2, eta=3e-4)
+	### Create and load all other models
+	@show train_all_models(; runs = 2)
 
 	training_finished = rand() # marker that training finished
+	nothing
 end
 
 # ╔═╡ 37d35f65-6ed8-4eef-b254-5c6d06f01c06
@@ -216,6 +266,7 @@ begin
 	end
 	
 	testing_finished = rand()
+	nothing
 end
 
 # ╔═╡ 21bc1b1b-3319-443b-9401-4a4c5cba6e4f
@@ -226,6 +277,7 @@ begin
 	pred_aug_full = LeNet5.test(model_FullAug, testingData)
 	pred_no_aug = LeNet5.test(model_NoAug, testingData)
 	pred_full_model = LeNet5.test(model_full, testingData)
+	nothing
 end
 
 # ╔═╡ b85c7f84-d532-44a0-a83f-7ff83d8b3939
@@ -497,6 +549,7 @@ html"""
 # ╟─34189beb-75e1-4bec-acf8-d726515e80e6
 # ╟─3152263a-e1b5-43c8-b957-9f50c66b2fc4
 # ╠═4bd85dd1-6661-4c23-a1c9-389da49187e8
+# ╠═33da904c-a964-4305-a5cd-eff2fe6543c9
 # ╠═0377fa30-04f9-452e-8d3a-c32f9635a7ad
 # ╟─37d35f65-6ed8-4eef-b254-5c6d06f01c06
 # ╠═9ebf65a7-41f0-48e0-a67e-4789858fdc5e
