@@ -205,6 +205,7 @@ module LeNet5
 		    hidedecorations!(ax)
 	        heatmap!(ax, reshape(x_set, 28,28,1,:)[:,end:-1:1,1,i], colormap = :grays, colorrange = (0, 1))
 	    end
+
 	    return fig
     end
 

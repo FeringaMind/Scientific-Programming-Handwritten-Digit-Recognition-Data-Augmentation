@@ -44,6 +44,232 @@ begin
 	PlutoUI.TableOfContents()
 end
 
+# ╔═╡ d1cbf365-b3b1-494f-8158-f7c3b33a9fd3
+md"# Digit Recognition - Data Augmentation"
+
+# ╔═╡ 7d5f7d36-e6e6-41ca-a1bc-fd222ce9fe2f
+#=
+- Introduction
+	- What is digit recognition?
+- Motivation
+	- Introduce the CNN model used (LeNet 5)
+	- Introduce the fully trained model and the mnist dataset
+		- Why would you need data augmentation? -> Less training images -> Less training time -> *HOPEFULLY* nearly equal or adequate performance
+- Data Augmentation
+	- What augmentation methods did we use?
+	- What do they look like?
+	- What advantages could they bring?
+- Augmentation models
+	- Introduce the models tested, the datasets used, and the training parameters used
+- Evaluation
+	- Introduce the evaluation metrics (total accuracy, accuracy per number -> maximum difference, confusion matrix)
+	- Show the results of our models
+- Conclusion
+	- Conclude our hypothesis with the results
+	- Outlook on what did or did not work and why (augmentation disadvantages)
+	- MAYBE outlook on what more we would have done with more time
+=#
+
+# ╔═╡ a8cfdd5a-c5ef-4ef0-946c-d9594724acc3
+md"## 1 - Introduction"
+
+# ╔═╡ 9dc2706a-7b71-4576-bb04-68c7aacbb9ad
+
+
+# ╔═╡ dc6459b8-92a2-45c1-8378-5089def92f15
+md"## 2 - Motivation"
+
+# ╔═╡ 4b142462-d76d-4948-8de0-b32b65f4f0b7
+
+
+# ╔═╡ 51c66468-da97-42a0-b594-e1a531ce66a2
+md"## 3 - Data Augmentation Methods"
+
+# ╔═╡ 132df693-22dc-4757-8f21-5421317f836b
+begin
+	# get a small (10 each) data set to visualize the augmentation
+	data_small = LeNet5.getData_train(; amounts=fill(1,10))
+
+	# apply all kinds of augmentation
+	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_small[1], data_small[2])
+	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_small[1], data_small[2])
+	(data_flip_x, data_flip_y)= Augmentation.apply_augmentation_flip(data_small[1], data_small[2])
+	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_small[1], data_small[2])
+
+	# create all figures
+	fig_aug_rot = LeNet5.makeFigurePluto_Images(1200,150,data_rotate_x, data_rotate_y)
+	fig_aug_noise = LeNet5.makeFigurePluto_Images(1200,150,data_noise_x, data_noise_y)
+	fig_aug_flip = LeNet5.makeFigurePluto_Images(1200,150,data_flip_x, data_flip_y)
+	fig_aug_full = LeNet5.makeFigurePluto_Images(1200,150,data_all_x, data_all_y)
+	fig_no_aug = LeNet5.makeFigurePluto_Images(1200,150,data_small[1],data_small[2])
+	nothing
+end
+
+# ╔═╡ f5762b3f-37af-45f0-aecc-d7785b58984b
+md"### No Augmentation"
+
+# ╔═╡ bd8f9222-1c39-45a0-b29f-c9e2b7018e79
+fig_no_aug
+
+# ╔═╡ 4eab70fe-25be-44a3-956c-899e5712a790
+md"### Rotation"
+
+# ╔═╡ 9ed2b7e1-9da8-49d6-a463-b23d452d1ee7
+fig_aug_rot
+
+# ╔═╡ d112f3f9-700a-4d40-882a-db90c3ed7706
+md"### Noise"
+
+# ╔═╡ b5420a56-02c0-4f9a-9a80-457d039dd1f3
+fig_aug_noise
+
+# ╔═╡ 1b55e14d-465d-4458-9d68-5d4da206a226
+md"### Flip (Mirror)"
+
+# ╔═╡ 085188be-e85f-476c-9aff-fe87a4dcf423
+fig_aug_flip
+
+# ╔═╡ ae063e85-0ed0-40b1-b84c-82e3e6de0d1f
+md"### Full Augmentation w/o Flip"
+
+# ╔═╡ 34189beb-75e1-4bec-acf8-d726515e80e6
+fig_aug_full
+
+# ╔═╡ 3152263a-e1b5-43c8-b957-9f50c66b2fc4
+md"## 4 - Trained Models"
+
+# ╔═╡ 4bd85dd1-6661-4c23-a1c9-389da49187e8
+begin
+	data_part = LeNet5.getData_train(; amounts=fill(542,10))
+	data_full = LeNet5.getData_train(; amounts=fill(5421,10))
+
+	data_loading_finished = rand() # marker that the data sets are prepared
+	nothing
+end
+
+# ╔═╡ 0377fa30-04f9-452e-8d3a-c32f9635a7ad
+begin
+	data_loading_finished # start after the data sets are prepared 
+		
+	model_NoAug = LeNet5.createModel() 
+	model_Rotation = LeNet5.createModel() 
+	model_Noise = LeNet5.createModel() 
+	model_Flip = LeNet5.createModel()
+	model_FullAug = LeNet5.createModel() 
+	model_full = LeNet5.createModel()
+
+	if isfile("./models/model_54210.bson")
+		@load "./models/model_54210.bson" model_full
+	else
+		LeNet5.train!(model_full, data_full)
+		@save "./models/model_54210.bson" model_full
+	end
+
+	aug_fun::Function = (a, b) -> (a,b)
+	
+	dict_models_funs = Dict(model_NoAug => aug_fun,
+							model_Rotation => Augmentation.apply_augmentation_rotate,
+							model_Noise => Augmentation.apply_augmentation_noise,
+							model_Flip => Augmentation.apply_augmentation_flip,
+							model_FullAug => Augmentation.apply_augmentation_full
+						   )
+
+	LeNet5.train!(dict_models_funs, data_part; batchsize=32, epochs=30, lambda=1e-2, eta=3e-4)
+
+	training_finished = rand() # marker that training finished
+end
+
+# ╔═╡ 37d35f65-6ed8-4eef-b254-5c6d06f01c06
+md"## 5 - Evaluation"
+
+# ╔═╡ 9ebf65a7-41f0-48e0-a67e-4789858fdc5e
+begin	
+	training_finished # activate after training finished
+	
+	testingData = LeNet5.getData_test()
+	ycold = Flux.onecold(testingData[2], 0:9)
+
+	# Training the models differently
+
+	models_dict = Dict("model_NoAug" => model_NoAug,
+					   "model_Rotation" => model_Rotation,
+					   "model_Noise" => model_Noise,
+					   "model_Flip" => model_Flip,
+					   "model_FullAug" => model_FullAug,
+					   "model_Full" => model_full
+					   )
+
+	for (name,model) in models_dict
+		
+		pred = LeNet5.test(model, testingData)
+		acc = LeNet5.overall_accuracy(pred,ycold)
+		println("$(name) T_Acc: $(acc)")
+		accN = LeNet5.accuracy_per_class(pred, ycold)
+		
+		v = Float32[]
+		for (key, val) in accN
+			println("     Num: $(key) -> Acc: $(round(val[1], digits=2)) for $(val[2])")			
+			push!(v, val[1])
+		end
+		
+		println("     $(round(maximum(v)- minimum(v), digits=2))")
+	end
+	
+	testing_finished = rand()
+end
+
+# ╔═╡ 21bc1b1b-3319-443b-9401-4a4c5cba6e4f
+begin
+	pred_rot = LeNet5.test(model_Rotation, testingData)
+	pred_noise = LeNet5.test(model_Noise, testingData)
+	pred_flip = LeNet5.test(model_Flip, testingData)
+	pred_aug_full = LeNet5.test(model_FullAug, testingData)
+	pred_no_aug = LeNet5.test(model_NoAug, testingData)
+	pred_full_model = LeNet5.test(model_full, testingData)
+end
+
+# ╔═╡ b85c7f84-d532-44a0-a83f-7ff83d8b3939
+md"### Fully Trained Model"
+
+# ╔═╡ 2286f5d2-cf26-415d-a937-31d335734e00
+makeFigurePluto_ConfusionMatrix(pred_full_model, ycold; x_size=600, y_size=600)
+
+# ╔═╡ bcb962ba-15f7-44dd-9deb-d53ed4cc2d9b
+md"### Non-Augmented Model (10%)"
+
+# ╔═╡ fa6747bf-f695-4635-b00b-0297ef662883
+makeFigurePluto_ConfusionMatrix(pred_no_aug, ycold; x_size=600, y_size=600)
+
+# ╔═╡ b87f90ac-3c14-48e2-b83b-9fff926d8119
+md"### Fully-Augmented Model (10%)"
+
+# ╔═╡ 091e2630-94df-4f6a-922b-2599e845de14
+makeFigurePluto_ConfusionMatrix(pred_aug_full, ycold; x_size=600, y_size=600)
+
+# ╔═╡ a5651e12-67d1-484f-9f23-6ca16f93ef00
+md"### Only Rotation Model (10%)"
+
+# ╔═╡ 80dcc6b6-bf4b-45b9-b137-5c54a1266bb6
+makeFigurePluto_ConfusionMatrix(pred_rot, ycold; x_size=600, y_size=600)
+
+# ╔═╡ 9391e495-c5a3-4e3c-9210-ca535261b70c
+md"### Only Noise Model (10%)"
+
+# ╔═╡ 5920c466-ebf5-4d66-9347-10a1ebe29efc
+makeFigurePluto_ConfusionMatrix(pred_noise, ycold; x_size=600, y_size=600)
+
+# ╔═╡ 5ca75737-143e-4a4b-9f48-84ad8f96a832
+md"### Only Flip (Mirror) Model (10%)"
+
+# ╔═╡ 5bf133d2-b92c-41e9-9ac4-04b2f3a6d873
+makeFigurePluto_ConfusionMatrix(pred_flip, ycold; x_size=600, y_size=600)
+
+# ╔═╡ ee91b0ab-2902-4d86-af4b-d817526daa50
+md"## 6 - Conclusion"
+
+# ╔═╡ d782dde0-5d38-423b-82e6-d7505b4dfc58
+
+
 # ╔═╡ 8cb672c0-5358-11f0-16ec-75bbd3266681
 md"""
 # Handwritten Digit Recognition using the MNIST dataset
@@ -63,50 +289,6 @@ We start with loading the training and test data from the MNIST dataset, a colle
 
 
 """
-
-# ╔═╡ 4bd85dd1-6661-4c23-a1c9-389da49187e8
-begin
-	data_part = LeNet5.getData_train(; amounts=fill(542,10))
-	data_full = LeNet5.getData_train(; amounts=fill(5421,10))
-
-	println(size(data_part[2]))
-
-	data_finished = rand() # marker that the data sets are prepared
-end
-
-# ╔═╡ a1e56527-4065-477a-941d-9afa5d8c5628
-md"# TODO: HEADER AND DESC FOR VISUALIZE"
-
-# ╔═╡ 384bd25d-66f6-482e-935d-9c9708179690
-@time begin
-	# get a small (10 each) data set to visualize the augmentation
-	data_small = LeNet5.getData_train(; amounts=fill(1,10))
-
-	# apply all kinds of augmentation
-	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_small[1], data_small[2])
-	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_small[1], data_small[2])
-	(data_flip_x, data_flip_y)= Augmentation.apply_augmentation_flip(data_small[1], data_small[2])
-	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_small[1], data_small[2])
-
-	# create all figures
-	fig_aug_rot = LeNet5.makeFigurePluto_Images(1200,150,data_rotate_x, data_rotate_y)
-	fig_aug_noise = LeNet5.makeFigurePluto_Images(1200,150,data_noise_x, data_noise_y)
-	fig_aug_flip = LeNet5.makeFigurePluto_Images(1200,150,data_flip_x, data_flip_y)
-	fig_aug_full = LeNet5.makeFigurePluto_Images(1200,150,data_all_x, data_all_y)
-	fig_no_aug = LeNet5.makeFigurePluto_Images(1200,150,data_small[1],data_small[2])
-end
-
-# ╔═╡ 048d5fb2-8cf8-4a61-bfc8-c97fedfa30d8
-fig_aug_rot
-
-# ╔═╡ dc548758-a391-4fce-8c9c-5b4ccfd04994
-fig_aug_noise
-
-# ╔═╡ 04a45c1c-79a8-4d72-8cae-aeedef777f69
-fig_aug_flip
-
-# ╔═╡ ee180bc9-afd1-4fb5-8d3c-e74eec4829a1
-fig_aug_full
 
 # ╔═╡ 64fdd548-0994-4ccb-8a91-dc394f478926
 md"""
@@ -138,15 +320,11 @@ $\mathbb{R}^{28 \times 28 \times 1}
 \xrightarrow{\text{Conv 1}} \mathbb{R}^{24 \times 24 \times 6}
 \xrightarrow{\text{Pool 1 }} \mathbb{R}^{12 \times 12 \times 6}
 \xrightarrow{\text{Conv 2 }} \mathbb{R}^{8 \times 8 \times 16}
-\xrightarrow{\text{Pool 2}} \mathbb{R}^{4 \times 4 \times 16}$
-"""
-
-# ╔═╡ d28a4019-56f3-451b-8d86-676e410c9113
-md"""
-$\xrightarrow{\text{Flatten}} \mathbb{R}^{256}
+\xrightarrow{\text{Pool 2}} \mathbb{R}^{4 \times 4 \times 16}
+\xrightarrow{\text{Flatten}} \mathbb{R}^{256}
 \xrightarrow{\text{Dense}} \mathbb{R}^{120}
-\xrightarrow{} \mathbb{R}^{84}
-\xrightarrow{} \mathbb{R}^{10}
+\xrightarrow{\text{Dense}} \mathbb{R}^{84}
+\xrightarrow{\text{Dense}} \mathbb{R}^{10}
 \xrightarrow{\text{softmax}} \text{probabilities}$
 """
 
@@ -162,64 +340,6 @@ With the model architecture in place, we now train the convolutional neural netw
 
 For this task, we employ the cross-entropy loss function, which is commonly used for multi-class classification problems. Let $\hat{\mathbf{y}}_{i}$ denote the predicted probability distribution for the i-th sample, and $\mathbf{y}_{i}$ the corresponding one-hot encoded ground truth label. The cross-entropy loss over a batch $\mathbb{N}$ of samples is defined as:
 """
-
-# ╔═╡ b5cb9b39-a573-4303-b4b4-760b029ac99e
-begin #= only for combined augmentation
-	(data_rotate_x, data_rotate_y)= Augmentation.apply_augmentation_rotate(data_part[1], data_part[2])
-	(data_noise_x, data_noise_y)= Augmentation.apply_augmentation_noise(data_part[1], data_part[2])
-	(data_all_x, data_all_y)= Augmentation.apply_augmentation_full(data_part[1], data_part[2])
-
-	x_dim = ndims(data_part[1])
-	y_dim = ndims(data_part[2])
-	
-	cdata_rotate_x = cat(data_part[1], data_rotate_x; dims=x_dim)
-	cdata_rotate_y = cat(data_part[2], data_rotate_y; dims=y_dim)
-	
-	cdata_noise_x = cat(data_part[1], data_noise_x; dims=x_dim)
-	cdata_noise_y = cat(data_part[2], data_noise_y; dims=y_dim)
-	
-	cdata_all_x = cat(data_part[1], data_all_x; dims=x_dim)
-	cdata_all_y = cat(data_part[2], data_all_y; dims=y_dim)
-	=#
-end
-
-# ╔═╡ 0377fa30-04f9-452e-8d3a-c32f9635a7ad
-begin
-	data_finished # start after the data sets are prepared 
-		
-	model_NoAug = LeNet5.createModel() 
-	model_Rotation = LeNet5.createModel() 
-	model_Noise = LeNet5.createModel() 
-	model_Flip = LeNet5.createModel()
-	model_FullAug = LeNet5.createModel() 
-	model_full = LeNet5.createModel()
-
-	if isfile("./models/model_54210.bson")
-		@load "./models/model_54210.bson" model_full
-	else
-		LeNet5.train!(model_full, data_full)
-		@save "./models/model_54210.bson" model_full
-	end
-
-	aug_fun::Function = (a, b) -> (a,b)
-	
-	dict_models_funs = Dict(model_NoAug => aug_fun,
-							model_Rotation => Augmentation.apply_augmentation_rotate,
-							model_Noise => Augmentation.apply_augmentation_noise,
-							model_Flip => Augmentation.apply_augmentation_flip,
-							model_FullAug => Augmentation.apply_augmentation_full
-						   )
-
-	#=
-	LeNet5.train!(model_NoAug, data_part;batchsize=4, epochs=40, lambda=1e-2, eta=3e-4)
-	LeNet5.train!(model_Rotation, data_part;batchsize=4, epochs=40, aug_fun=Augmentation.apply_augmentation_rotate, chance=1, lambda=1e-2, eta=3e-4)
-	LeNet5.train!(model_Noise, data_part;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_noise, chance=1, lambda=1e-2, eta=3e-4)
-	LeNet5.train!(model_FullAug, data_part;batchsize=32, epochs=40, aug_fun=Augmentation.apply_augmentation_full, chance=1, lambda=1e-2, eta=3e-4)
-	=#
-	LeNet5.train!(dict_models_funs, data_part; batchsize=32, epochs=30, lambda=1e-2, eta=3e-4)
-
-	training_finished=rand() # marker that training finished
-end
 
 # ╔═╡ 4b121f12-f8b9-47ef-b131-c7be2a4b194e
 
@@ -250,23 +370,6 @@ md"""
 The following block initializes the model and runs the training procedure for 20 epochs with a batch size of 32:
 """
 
-# ╔═╡ 64c2570c-b055-4c8f-bb97-df17e0adaef4
-#=
-begin
-	fig4 = Figure(size=(450,450))
-	ax = CairoMakie.Axis(
-		fig4[1,1]; 
-		xlabel="training steps", 
-		ylabel="loss",
-		title="Training history",
-		# yscale=log10,
-	)
-	
-	p = lines!(ax, loss_history)
-	fig4
-end
-=#
-
 # ╔═╡ dc63e616-488b-45de-b8c3-5449c1a58267
 md"""
 This training setup illustrates a typical supervised learning pipeline using modern deep learning tools. It highlights how the combination of an appropriate loss function, optimizer, and regularization strategy can lead to effective model learning on image classification tasks.
@@ -277,43 +380,6 @@ md"""
 ## 4. Model Evaluation and Prediction on the Test Set
 To evaluate the trained model, we apply it to the MNIST test set and generate predictions. The model outputs a probability distribution over the 10 digit classes for each image, and we select the most likely class using onecold:
 """
-
-# ╔═╡ 9ebf65a7-41f0-48e0-a67e-4789858fdc5e
-begin	
-	training_finished # activate after training finished
-	
-	testingData = LeNet5.getData_test()
-	ycold = Flux.onecold(testingData[2], 0:9)
-
-	# Training the models differently
-
-	models_dict = Dict("model_NoAug" => model_NoAug,
-					   "model_Rotation" => model_Rotation,
-					   "model_Noise" => model_Noise,
-					   "model_Flip" => model_Flip,
-					   "model_FullAug" => model_FullAug,
-					   "model_Full" => model_full
-					   )
-
-
-	for (name,model) in models_dict
-		
-		pred = LeNet5.test(model, testingData)
-		acc = LeNet5.overall_accuracy(pred,ycold)
-		println("$(name) T_Acc: $(acc)")
-		accN = LeNet5.accuracy_per_class(pred, ycold)
-		
-		v = Float32[]
-		for (key, val) in accN
-			println("     Num: $(key) -> Acc: $(round(val[1], digits=2)) for $(val[2])")			
-			push!(v, val[1])
-		end
-		
-		println("     $(round(maximum(v)- minimum(v), digits=2))")
-		
-	end
-	testing_finished= rand()
-end
 
 # ╔═╡ 233b873b-d5bb-49cd-a432-6be2be754387
 # @bind plotslice2 PlutoUI.Slider(1:div(size(ytest,2),12))
@@ -350,42 +416,6 @@ We then visualize the matrix as a heatmap, with annotations to indicate the numb
 md"""
 From the confusion matrix, we observe that the model correctly classifies most digits without any strong systematic bias. However, the overall accuracy, defined as the ratio of correct predictions to the total number of predictions, is:
 """
-
-# ╔═╡ 21bc1b1b-3319-443b-9401-4a4c5cba6e4f
-begin
-	pred_rot = LeNet5.test(model_Rotation, testingData)
-	makeFigurePluto_ConfusionMatrix(pred_rot, ycold; x_size=600, y_size=600)
-end
-
-# ╔═╡ 5920c466-ebf5-4d66-9347-10a1ebe29efc
-begin
-	pred_noise = LeNet5.test(model_Noise, testingData)
-	makeFigurePluto_ConfusionMatrix(pred_noise, ycold; x_size=600, y_size=600)
-end
-
-# ╔═╡ 5bf133d2-b92c-41e9-9ac4-04b2f3a6d873
-begin
-	pred_flip = LeNet5.test(model_Flip, testingData)
-	makeFigurePluto_ConfusionMatrix(pred_flip, ycold; x_size=600, y_size=600)
-end
-
-# ╔═╡ 091e2630-94df-4f6a-922b-2599e845de14
-begin
-	pred_aug_full = LeNet5.test(model_FullAug, testingData)
-	makeFigurePluto_ConfusionMatrix(pred_aug_full, ycold; x_size=600, y_size=600)
-end
-
-# ╔═╡ fa6747bf-f695-4635-b00b-0297ef662883
-begin
-	pred_no_aug = LeNet5.test(model_NoAug, testingData)
-	makeFigurePluto_ConfusionMatrix(pred_no_aug, ycold; x_size=600, y_size=600)
-end
-
-# ╔═╡ 2286f5d2-cf26-415d-a937-31d335734e00
-begin
-	pred = LeNet5.test(model_full, testingData)
-	makeFigurePluto_ConfusionMatrix(pred, ycold; x_size=600, y_size=600)
-end
 
 # ╔═╡ f63eaf02-ee42-467c-b00f-623582c5dac0
 md"""
@@ -446,44 +476,64 @@ html"""
 """
 
 # ╔═╡ Cell order:
-# ╟─8cb672c0-5358-11f0-16ec-75bbd3266681
 # ╠═ba491ad9-0c09-44a3-ab98-21919da7c62e
-# ╟─8c7603fa-07a7-4435-b80b-562f7ada38ee
+# ╟─d1cbf365-b3b1-494f-8158-f7c3b33a9fd3
+# ╠═7d5f7d36-e6e6-41ca-a1bc-fd222ce9fe2f
+# ╟─a8cfdd5a-c5ef-4ef0-946c-d9594724acc3
+# ╠═9dc2706a-7b71-4576-bb04-68c7aacbb9ad
+# ╟─dc6459b8-92a2-45c1-8378-5089def92f15
+# ╠═4b142462-d76d-4948-8de0-b32b65f4f0b7
+# ╟─51c66468-da97-42a0-b594-e1a531ce66a2
+# ╠═132df693-22dc-4757-8f21-5421317f836b
+# ╟─f5762b3f-37af-45f0-aecc-d7785b58984b
+# ╟─bd8f9222-1c39-45a0-b29f-c9e2b7018e79
+# ╟─4eab70fe-25be-44a3-956c-899e5712a790
+# ╟─9ed2b7e1-9da8-49d6-a463-b23d452d1ee7
+# ╟─d112f3f9-700a-4d40-882a-db90c3ed7706
+# ╟─b5420a56-02c0-4f9a-9a80-457d039dd1f3
+# ╟─1b55e14d-465d-4458-9d68-5d4da206a226
+# ╟─085188be-e85f-476c-9aff-fe87a4dcf423
+# ╟─ae063e85-0ed0-40b1-b84c-82e3e6de0d1f
+# ╟─34189beb-75e1-4bec-acf8-d726515e80e6
+# ╟─3152263a-e1b5-43c8-b957-9f50c66b2fc4
 # ╠═4bd85dd1-6661-4c23-a1c9-389da49187e8
-# ╟─a1e56527-4065-477a-941d-9afa5d8c5628
-# ╟─384bd25d-66f6-482e-935d-9c9708179690
-# ╠═048d5fb2-8cf8-4a61-bfc8-c97fedfa30d8
-# ╠═dc548758-a391-4fce-8c9c-5b4ccfd04994
-# ╠═04a45c1c-79a8-4d72-8cae-aeedef777f69
-# ╠═ee180bc9-afd1-4fb5-8d3c-e74eec4829a1
+# ╠═0377fa30-04f9-452e-8d3a-c32f9635a7ad
+# ╟─37d35f65-6ed8-4eef-b254-5c6d06f01c06
+# ╠═9ebf65a7-41f0-48e0-a67e-4789858fdc5e
+# ╠═21bc1b1b-3319-443b-9401-4a4c5cba6e4f
+# ╟─b85c7f84-d532-44a0-a83f-7ff83d8b3939
+# ╟─2286f5d2-cf26-415d-a937-31d335734e00
+# ╟─bcb962ba-15f7-44dd-9deb-d53ed4cc2d9b
+# ╟─fa6747bf-f695-4635-b00b-0297ef662883
+# ╟─b87f90ac-3c14-48e2-b83b-9fff926d8119
+# ╟─091e2630-94df-4f6a-922b-2599e845de14
+# ╟─a5651e12-67d1-484f-9f23-6ca16f93ef00
+# ╟─80dcc6b6-bf4b-45b9-b137-5c54a1266bb6
+# ╟─9391e495-c5a3-4e3c-9210-ca535261b70c
+# ╟─5920c466-ebf5-4d66-9347-10a1ebe29efc
+# ╟─5ca75737-143e-4a4b-9f48-84ad8f96a832
+# ╟─5bf133d2-b92c-41e9-9ac4-04b2f3a6d873
+# ╟─ee91b0ab-2902-4d86-af4b-d817526daa50
+# ╠═d782dde0-5d38-423b-82e6-d7505b4dfc58
+# ╟─8cb672c0-5358-11f0-16ec-75bbd3266681
+# ╟─8c7603fa-07a7-4435-b80b-562f7ada38ee
 # ╟─64fdd548-0994-4ccb-8a91-dc394f478926
 # ╟─94da4f46-f348-4148-b7c5-7e01b901f356
 # ╟─69ae3d42-9d1b-4393-9b88-9a3930b03ac9
-# ╟─4016bf0e-e127-46ed-bd57-74d6e46866b3
-# ╟─d28a4019-56f3-451b-8d86-676e410c9113
+# ╠═4016bf0e-e127-46ed-bd57-74d6e46866b3
 # ╟─299f8e36-41ab-4536-91d8-5d4cac16aecb
 # ╟─06baaad7-d8b2-4a51-8421-2f8d1a8ae70b
-# ╠═b5cb9b39-a573-4303-b4b4-760b029ac99e
-# ╠═0377fa30-04f9-452e-8d3a-c32f9635a7ad
 # ╟─4b121f12-f8b9-47ef-b131-c7be2a4b194e
 # ╟─fe56b42b-28db-4dfc-84d6-1d4e80c6aaa0
 # ╟─83d17c51-34d2-4cc1-95b0-0a405c9f1499
 # ╟─3f93e564-f110-40db-85ee-58bfd31c791e
-# ╟─64c2570c-b055-4c8f-bb97-df17e0adaef4
 # ╟─dc63e616-488b-45de-b8c3-5449c1a58267
 # ╟─917fa567-43b4-4a5a-a7dd-52de16e4651f
-# ╠═9ebf65a7-41f0-48e0-a67e-4789858fdc5e
 # ╟─233b873b-d5bb-49cd-a432-6be2be754387
 # ╟─3aea78df-5212-4ae8-8c67-6406d8c20591
 # ╠═d183f9cc-a22f-487b-99ae-e8b60166e4b6
 # ╟─db1f1008-27d5-4d35-ac06-05e61f86f692
 # ╟─350cc27f-995b-4064-9bfa-de0a3ea05ac1
-# ╠═21bc1b1b-3319-443b-9401-4a4c5cba6e4f
-# ╠═5920c466-ebf5-4d66-9347-10a1ebe29efc
-# ╠═5bf133d2-b92c-41e9-9ac4-04b2f3a6d873
-# ╠═091e2630-94df-4f6a-922b-2599e845de14
-# ╠═fa6747bf-f695-4635-b00b-0297ef662883
-# ╠═2286f5d2-cf26-415d-a937-31d335734e00
 # ╟─f63eaf02-ee42-467c-b00f-623582c5dac0
 # ╟─1e4ae0e7-5c65-4cd7-9f53-0708a8e40351
 # ╟─f90ab7e0-1554-463b-8545-870f6f6d469d
