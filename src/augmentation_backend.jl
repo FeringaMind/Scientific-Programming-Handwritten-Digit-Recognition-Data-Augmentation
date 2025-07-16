@@ -205,7 +205,14 @@ module Augmentation
     end
 
     """
-    #TODO description
+    add_augmentation_noise(x_train, y_train)
+
+    Apply noise augmentation to the training dataset.
+    Takes:
+        x_train: The original training images
+        y_train: The corresponding labels for the training images
+    Returns:
+        (x_train_aug, y_train_aug): Tuple containing the training images <ugmented with noise and their corresponding labels
     """
 
     function add_augmentation_noise(x_train, y_train)
@@ -228,7 +235,14 @@ module Augmentation
     end
 
     """
-    #TODO description
+    add_augmentation_rotate(x_train, y_train)
+
+    Apply rotation augmentation to the training dataset.
+    Takes:
+        x_train: The original training images
+        y_train: The corresponding labels for the training images
+    Returns:
+        (x_train_aug, y_train_aug): Tuple containing the training images augmented by rotation and their corresponding labels
     """
 
     function add_augmentation_rotate(x_train, y_train)
@@ -250,17 +264,6 @@ module Augmentation
         return (x_train_aug, y_train_aug)# returns trainingdata, new labels, actual augmentation rate
     end
 
-    """
-    #TODO description
-    """
-#=
-    function add_augmentation_full(x_train, y_train)
-
-
-        return (noise_data_x,noise_data_y)  # returns trainingdata, new labels, actual augmentation rate
-    end
-=#
-
     ### Exports
     export apply_augmentation_full
     export apply_augmentation_noise
@@ -271,4 +274,3 @@ module Augmentation
     export zoom_image
     export rotate_image
 end
-    
