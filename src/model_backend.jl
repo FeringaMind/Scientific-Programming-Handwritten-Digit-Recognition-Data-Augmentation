@@ -47,13 +47,13 @@ module LeNet5
         xtrain, ytrain: x... is the data and y... represents the labels.
     """
     function getData_train(;pptt=10000, amounts=missing)
-
         if ismissing(amounts)
             return getData_train_pptt(pptt=pptt)
         else
             return getData_train_amounts(amounts=amounts)
         end
     end
+
 
     """
     getData_train_pptt(;pptt)
@@ -110,6 +110,7 @@ module LeNet5
         return xtrain, ytrain
 
     end
+
 
     """
     getData_train_amounts(;amounts)
@@ -205,8 +206,10 @@ module LeNet5
 		    hidedecorations!(ax)
 	        heatmap!(ax, reshape(x_set, 28,28,1,:)[:,end:-1:1,1,i], colormap = :grays, colorrange = (0, 1))
 	    end
+
 	    return fig
     end
+
 
     """
     makeFigurePluto_ConfusionMatrix(y_hat,y)
@@ -275,7 +278,7 @@ module LeNet5
         loss_history: The loss_history of the training
     """
 
-    function train!(dict_model_funs, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
+    function train!(dict_models, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
 
         # setup data and model
         xtrain, ytrain = data
@@ -283,7 +286,6 @@ module LeNet5
         loss_function = Flux.crossentropy
 
         opt_rule = OptimiserChain(WeightDecay(lambda), ADAMW(eta))
-        opt_state = Flux.setup(opt_rule, first(keys(dict_model_funs)))
 
         width = displaysize(stdout)[2]  # columns (width of terminal)
         println("Training for $(epochs) epochs on $(size(xtrain)[end]) images with batchsize $(batchsize) | λ=$(lambda), η=$(eta)")
@@ -293,15 +295,6 @@ module LeNet5
         time_history = []
         actual = Flux.onecold(ytrain |> cpu, 0:9)
         for epoch in 1:epochs
-    
-            #-Augmentation with aug_fun for one model training
-            #aug_data= aug_fun(data[1], data[2], chance)
-
-            #-Augmentattion with combined for one model training and add augmentation
-            #combined_x = cat(xtrain, aug_data[1]; dims=ndims(xtrain)) #only for the add_augmentation
-            #combined_y = cat(ytrain, aug_data_[2]; dims=ndims(ytrain))
-            #combined = (combined_x, combined_y)
-
             train_loader = Flux.DataLoader(data, batchsize=batchsize, shuffle=true) #combined instead of aug_data for the add augmentation
 
             println(repeat("-", width))
@@ -309,27 +302,31 @@ module LeNet5
 
             epoch_loss_history = []
 
-            for (model,funs) in dict_model_funs #training all models with the same batches but different augmentations
+            for (name, model_s) in dict_models #training all models with the same batches but different augmentations
+                if model_s.should_train == false
+                    continue
+                end
+                
+                opt_state = Flux.setup(opt_rule, model_s.model)
 
                 time_train = @elapsed begin
                     for xy_cpu in train_loader
                         
                         x, y = xy_cpu |> cpu	# transfer data to device
-
-                        (x, y) = funs(x, y)
+                        (x, y) = model_s.aug_function(x, y)
                 
-                        loss, grads = Flux.withgradient(model) do m
+                        loss, grads = Flux.withgradient(model_s.model) do m
                             loss_function(m(x), y)
                         end
 
                         push!(loss_history, loss)                        
                         push!(epoch_loss_history, loss)
-                        Flux.update!(opt_state, model, grads[1]) # update parameters pf model
+                        Flux.update!(opt_state, model_s.model, grads[1]) # update parameters pf model
                     end
                 end
                 push!(time_history, time_train)
 
-                y_hat = model(xtrain |> cpu) # get the models prediction after training
+                y_hat = model_s.model(xtrain |> cpu) # get the models prediction after training
                 preds = Flux.onecold(y_hat |> cpu, 0:9)
                 correct = count(preds .== actual)
                 total = length(actual)

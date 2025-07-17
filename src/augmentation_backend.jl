@@ -14,11 +14,12 @@ module Augmentation
     Returns:
         Augmented image with added noise.
     """
-    function add_noise(image, noise_level_range=-0.05:0.05)
+    function add_noise(image, noise_level_range=-0.1:0.1)
         noise_level = rand(noise_level_range)
         noise = noise_level * randn(size(image))
         return clamp.(image .+ noise, 0.0, 1.0) # ensures pixel value stays between 0.0 and 1.0
     end
+
 
     """
     zoom_image(image, zoom_factor)
@@ -39,6 +40,7 @@ module Augmentation
         return tfm
     end
 
+
     """
     flip_image(image; dims)
 
@@ -52,6 +54,7 @@ module Augmentation
     function flip_image(image; dims = 1)
         return reverse(image, dims = dims)
     end
+
 
     """
     rotate_image(image, max_angle_deg)
@@ -70,6 +73,7 @@ module Augmentation
         return warp(image, tfm, axes(image), fillvalue=Float32(0.0)) # rotate -> fill corners black
     end
 
+
     """
     apply_augmentation_noise(x_train, y_train, prob)
     
@@ -84,7 +88,6 @@ module Augmentation
         (x_train_aug, y_train): Tuple of augmented images and original labels
         n_augmented: Number of images that were actually augmented
     """
-
     function apply_augmentation_noise(x_train, y_train)
 
         x_train_aug = deepcopy(x_train)
@@ -103,6 +106,7 @@ module Augmentation
         return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
     end
 
+
     """
     apply_augmentation_flip(x_train, y_train, prob)
     
@@ -117,7 +121,6 @@ module Augmentation
         (x_train_aug, y_train): Tuple of augmented images and original labels
         n_augmented: Number of images that were actually augmented
     """
-
     function apply_augmentation_flip(x_train, y_train)
 
         x_train_aug = deepcopy(x_train)
@@ -135,6 +138,7 @@ module Augmentation
         return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
     end
 
+
     """
     apply_augmentation_rotate(x_train, y_train, prob)
 
@@ -149,7 +153,6 @@ module Augmentation
         (x_train_aug, y_train): Tuple of augmented images and original labels
         n_augmented: Number of images that were actually augmented
     """
-
     function apply_augmentation_rotate(x_train, y_train)
 
         x_train_aug = deepcopy(x_train)
@@ -168,6 +171,7 @@ module Augmentation
         return (x_train_aug, y_train) # returns trainingdata, new labels, actual augmentation rate
     end
 
+
     """
     apply_augmentation_full(x_train, y_train, prob)
 
@@ -182,7 +186,6 @@ module Augmentation
         (noise_data_x, noise_data_y): Tuple of data that was augmented with rotation and noise with their corresponding labels
         noise_amount+rot_amount: Sum of the number of images that were actually augmented in each augmentation
     """
-    
     function apply_augmentation_full(x_train, y_train)
 
         fns = Dict( 1 => Augmentation.rotate_image,
