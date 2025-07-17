@@ -35,35 +35,27 @@ The objective of this project is to develop and evaluate a handwritten digit cla
 | Open ⬜ | Done ✅ | In progress ⚙️ | Not working ❌ | Other ❓ |
 | ------ | ------ | ------------- | ------------- | ------- |
 
-- [x] **2025-06-20 to 2025-06-27**: Preparation
-
-​	⚙️ Readme.md *(ongoing)*
-
-​	⚙️~✅ Roadmap *(ongoing)*
-
-​	~~✅ Setup Project~~
+- [x] **2025-06-20 to 2025-06-27**: Preparation  
+    ✅ Readme.md  
+    ✅ Roadmap  
+    ✅ Setup Project
 
 - [x] **2025-06-27**: Kickoff meeting w/ group and supervisor
 
-- [ ] **2025-06-27 to 2025-07-04**: Sprint 1
+- [x] **2025-06-27 to 2025-07-04**: Sprint 1  
+    ✅ Repository Cleanup and writing train! function ⭐⭐⭐ *(refers to 2)*  
+    ✅ Write confusion matrix and accuracy function ⭐⭐⭐ *(refers to 3)*
 
-  	⬜ Write classifier Methods ⭐⭐⭐ *(refers to 2)*
+- [x] **2025-07-05 to 2025-07-11**: Sprint 2  
+    ✅ Save training models ⭐⭐ *(refers to 4)*  
+    ✅ Evaluation/Discussion/Testing ⭐⭐⭐ *(refers to 4/5)*  
+    ✅ Fix Augmentation and Backend ⭐⭐ *(refers to 5)*
 
-  	⬜ Write evaluation Methods ⭐⭐⭐ *(refers to 3)*
+- [x] **2025-07-12 to 2025-07-16**: Sprint 3  
+    ✅ Writing unit tests ⭐⭐ *(refers to general tasks)*  
+	✅ Rework Frontend text⭐⭐ *(refers to general tasks)*
+    ✅ Preparing the presentation ⭐⭐ *(refers to general tasks)*
 
-- [ ] **2025-07-05 to 2025-07-11**: Sprint 2
-
-​	⬜ Train the classifier ⭐⭐ *(refers to 4)*
-
-​	⬜ Evaluation/Discussion/Testing ⭐⭐⭐ *(refers to 4/5)*
-
-​	⬜ Testing with Augmentation ⭐⭐ *(refers to 5)*
-
-- [ ] **2025-07-12 to 2025-07-16**: Sprint 3
-
-​	⬜ Writing unit tests ⭐⭐ *(refers to general tasks)*
-
-​	⬜ Preparing the presentation ⭐⭐ *(refers to general tasks)*
 
 - [ ] **2025-07-18**: Presentation
 
@@ -71,8 +63,23 @@ The objective of this project is to develop and evaluate a handwritten digit cla
 
 ## Directory
 
-TBD
+## 📁 Projektstruktur
 
+```
+Scientific-Programming-Handwritten-Digit-Recognition-Data-Augmentation
+├── 📁 models
+│   └── model_54210.bson
+├── 📁 src
+│   ├── augmentation_backend.jl
+│   └── model_backend.jl
+├── 📁 tests
+│   └── test_LeNet5.jl
+├── .gitignore
+├── FrontendPluto.jl
+├── Manifest.toml
+├── Project.toml
+└── README.md
+```
 
 
 ## Contributers
