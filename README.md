@@ -39,46 +39,43 @@ The objective of this project is to develop and evaluate a handwritten digit cla
     ✅ Readme.md  
     ✅ Roadmap  
     ✅ Setup Project
-
 - [x] **2025-06-27**: Kickoff meeting w/ group and supervisor
-
 - [x] **2025-06-27 to 2025-07-04**: Sprint 1  
-    ✅ Repository Cleanup and writing train! function ⭐⭐⭐ *(refers to 2)*  
-    ✅ Write confusion matrix and accuracy function ⭐⭐⭐ *(refers to 3)*
-
+    ✅ Repository Cleanup and writing *train!* function ⭐⭐⭐ *(refers to 2)*  
+    ✅ Write confusion matrix and *accuracy* function ⭐⭐⭐ *(refers to 3)
 - [x] **2025-07-05 to 2025-07-11**: Sprint 2  
     ✅ Save training models ⭐⭐ *(refers to 4)*  
     ✅ Evaluation/Discussion/Testing ⭐⭐⭐ *(refers to 4/5)*  
     ✅ Fix Augmentation and Backend ⭐⭐ *(refers to 5)*
 
 - [x] **2025-07-12 to 2025-07-16**: Sprint 3  
-    ✅ Writing unit tests ⭐⭐ *(refers to general tasks)*  
-	✅ Rework Frontend text⭐⭐ *(refers to general tasks)*
+    ✅ Write unit tests ⭐⭐ *(refers to general tasks)*  
+    ✅ Rework Frontend text⭐⭐ *(refers to general tasks)*  
     ✅ Preparing the presentation ⭐⭐ *(refers to general tasks)*
 
 
-- [ ] **2025-07-18**: Presentation
+- [x] **2025-07-18**: Presentation
 
 
 
-## Directory
-
-## 📁 Projektstruktur
+## Directory Structure
 
 ```
-Scientific-Programming-Handwritten-Digit-Recognition-Data-Augmentation
-├── 📁 models
-│   └── model_54210.bson
-├── 📁 src
-│   ├── augmentation_backend.jl
-│   └── model_backend.jl
-├── 📁 tests
-│   └── test_LeNet5.jl
-├── .gitignore
+.
 ├── FrontendPluto.jl
 ├── Manifest.toml
+├── models
+│   └── model_54210.bson
+├── presentation
+│   ├── Presentation.html
+│   └── Presentation.pdf
 ├── Project.toml
-└── README.md
+├── README.md
+├── src
+│   ├── augmentation_backend.jl
+│   └── model_backend.jl
+└── tests
+    └── test_lenet5.jl
 ```
 
 
