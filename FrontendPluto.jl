@@ -138,94 +138,59 @@ fig_aug_full
 # ╔═╡ 3152263a-e1b5-43c8-b957-9f50c66b2fc4
 md"## 4 - Trained Models"
 
-# ╔═╡ 4bd85dd1-6661-4c23-a1c9-389da49187e8
-begin
-	data_full = LeNet5.getData_train(; amounts=fill(5421,10))
-
-	data_loading_finished = rand() # marker that the data sets are prepared
-	nothing
-end
-
 # ╔═╡ 33da904c-a964-4305-a5cd-eff2fe6543c9
-function train_all_models(; runs=1)
+begin
 	### Initilize all models
 	model_NoAug = LeNet5.createModel() 
 	model_Rotation = LeNet5.createModel() 
 	model_Noise = LeNet5.createModel() 
 	model_Flip = LeNet5.createModel()
 	model_FullAug = LeNet5.createModel()
+	model_full = LeNet5.createModel()
 
+	
+	### get training data
+	data_full = LeNet5.getData_train(; amounts=fill(5421,10))
 	data_part = LeNet5.getData_train(; amounts=fill(542,10))
 
 	
-	### Initilize the augmentation functions
+	### create the model dict
 	aug_fun::Function = (a, b) -> (a, b)
-	dict_models_funs = Dict(model_NoAug 	=> (aug_fun, 									"model_NoAug"),
-							model_Rotation 	=> (Augmentation.apply_augmentation_rotate, 	"model_Rotation"),
-							model_Noise 	=> (Augmentation.apply_augmentation_noise, 		"model_Noise"),
-							model_Flip 		=> (Augmentation.apply_augmentation_flip, 		"model_Flip"),
-							model_FullAug 	=> (Augmentation.apply_augmentation_full, 		"model_FullAug"))
+	
+	mutable struct model_struct
+		aug_function::Function
+	
+		model::Flux.Chain{Tuple{Flux.Conv{2, 4, typeof(NNlib.relu), Array{Float32, 4}, Vector{Float32}}, Flux.MaxPool{2, 4}, Flux.Conv{2, 4, typeof(NNlib.relu), Array{Float32, 4}, Vector{Float32}}, Flux.MaxPool{2, 4}, typeof(Flux.flatten), Flux.Dense{typeof(NNlib.relu), Matrix{Float32}, Vector{Float32}}, Flux.Dense{typeof(NNlib.relu), Matrix{Float32}, Vector{Float32}}, Flux.Dense{typeof(identity), Matrix{Float32}, Vector{Float32}}, typeof(NNlib.softmax)}}
 
-	
-	### Initilize the values for testing
-	testingData = LeNet5.getData_test()
-	ycold = Flux.onecold(testingData[2], 0:9)
-	
-	
-	### Initilize the vectors to save all values
-	model_accuracies = Dict{String, Vector{Dict{Int, Tuple{Float64, Int}}}}()
-	for (model, (func, name)) in dict_models_funs
-    	model_accuracies[name] = [Dict(k => (0.0, 0) for k in -1:9) for _ in 1:runs]
+		should_train::Bool
 	end
 	
-	### Do runs number of training runs
-	for run in 1:runs
-		### Get training data
-		data_part = LeNet5.getData_train(; amounts=fill(542,10))
-		
-		### Train the models
-		LeNet5.train!(dict_models_funs, data_part; batchsize=32, epochs=30, lambda=1e-2, eta=3e-4)
+	dict_models = Dict{String, model_struct}(
+		"model_NoAug" 		=> model_struct(aug_fun, 								model_NoAug, 	true),
+		"model_Rotation" 	=> model_struct(Augmentation.apply_augmentation_rotate, model_Rotation, true),
+		"model_Noise" 		=> model_struct(Augmentation.apply_augmentation_noise, 	model_Noise, 	true),
+		"model_Flip" 		=> model_struct(Augmentation.apply_augmentation_flip, 	model_Flip, 	true),
+		"model_FullAug" 	=> model_struct(Augmentation.apply_augmentation_full, 	model_FullAug, 	true))
 
-		### Test the models
-		for (model, (f, name)) in dict_models_funs
-			pred = LeNet5.test(model, testingData)
-			acc = LeNet5.overall_accuracy(pred, ycold)
-			accN = LeNet5.accuracy_per_class(pred, ycold)
-			accN[-1] = (acc, 0)
 
-			model_accuracies[name][run] = accN
-		end
-
-		### Reset all models
-		model_NoAug = LeNet5.createModel()
-		model_Rotation = LeNet5.createModel()
-		model_Noise = LeNet5.createModel()
-		model_Flip = LeNet5.createModel()
-		model_FullAug = LeNet5.createModel()
-	end
-
-	return model_accuracies
-end
-
-# ╔═╡ 0377fa30-04f9-452e-8d3a-c32f9635a7ad
-begin
-	data_loading_finished # start after the data sets are prepared 
-
-	### Create and load the fully trained model
-	model_full = LeNet5.createModel()
-
+	### Check the fully trained model
 	if isfile("./models/model_54210.bson")
 		@load "./models/model_54210.bson" model_full
 	else
-		LeNet5.train!(model_full, data_full)
+		LeNet5.train!(Dict("model_full" => model_struct(aug_fun, model_full, true)), data_full; epochs=20, batchsize=32, lambda=0, eta=3e-4) # Train the full model
 		@save "./models/model_54210.bson" model_full
 	end
 
+	
+	### Add the fully trained model to the Dict
+	dict_models["model_full"] = model_struct(aug_fun, model_full, false)
 
-	### Create and load all other models
-	@show train_all_models(; runs = 2)
+	
+	### Train the models
+	LeNet5.train!(dict_models, data_part; epochs=40, batchsize=64, lambda=0, eta=3e-4)
 
-	training_finished = rand() # marker that training finished
+	
+	__training_finished = rand() # marker that training finished
 	nothing
 end
 
@@ -234,87 +199,89 @@ md"## 5 - Evaluation"
 
 # ╔═╡ 9ebf65a7-41f0-48e0-a67e-4789858fdc5e
 begin	
-	training_finished # activate after training finished
+	__training_finished # activate after training finished
 	
+	### Initilize the values for testing
 	testingData = LeNet5.getData_test()
 	ycold = Flux.onecold(testingData[2], 0:9)
 
-	# Training the models differently
 
-	models_dict = Dict("model_NoAug" => model_NoAug,
-					   "model_Rotation" => model_Rotation,
-					   "model_Noise" => model_Noise,
-					   "model_Flip" => model_Flip,
-					   "model_FullAug" => model_FullAug,
-					   "model_Full" => model_full
-					   )
+	### Save the testing data
+	mutable struct prediction_struct
+		preds::Vector{Int64}
+		acc_total::Float64
+		acc_per_number::Dict{Int64, Tuple{Float64, Int64}}
+		max_diff::Float64
+	end
+	
+	dict_model_predictions = Dict{String, prediction_struct}()
 
-	for (name,model) in models_dict
-		
-		pred = LeNet5.test(model, testingData)
-		acc = LeNet5.overall_accuracy(pred,ycold)
-		println("$(name) T_Acc: $(acc)")
+
+	### Test all models
+	for (name, model_s) in dict_models
+		pred = LeNet5.test(model_s.model, testingData)
+		acc = LeNet5.overall_accuracy(pred, ycold)
 		accN = LeNet5.accuracy_per_class(pred, ycold)
-		
-		v = Float32[]
-		for (key, val) in accN
-			println("     Num: $(key) -> Acc: $(round(val[1], digits=2)) for $(val[2])")			
-			push!(v, val[1])
-		end
-		
-		println("     $(round(maximum(v)- minimum(v), digits=2))")
+		v = [val[1] for (key, val) in accN]
+		difference = maximum(v)- minimum(v)
+
+		dict_model_predictions[name] = prediction_struct(pred, acc, accN, difference)
 	end
 	
 	testing_finished = rand()
 	nothing
 end
 
-# ╔═╡ 21bc1b1b-3319-443b-9401-4a4c5cba6e4f
-begin
-	pred_rot = LeNet5.test(model_Rotation, testingData)
-	pred_noise = LeNet5.test(model_Noise, testingData)
-	pred_flip = LeNet5.test(model_Flip, testingData)
-	pred_aug_full = LeNet5.test(model_FullAug, testingData)
-	pred_no_aug = LeNet5.test(model_NoAug, testingData)
-	pred_full_model = LeNet5.test(model_full, testingData)
-	nothing
-end
+# ╔═╡ 862df3c3-5275-4a81-abfc-e53238dbe09d
+md"### Prediction Tables"
+
+# ╔═╡ a8f0b819-0089-48a3-99f3-69797bac2257
+md"""
+|                   | 0s                                                                                 | 1s                                                                                 | 2s                                                                                 | 3s                                                                                 | 4s                                                                                 | 5s                                                                                 | 6s                                                                                 | 7s                                                                                 | 8s                                                                                 | 9s                                                                                 | Total                                                               | Δ Max                          |
+|:-----------------:|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|------------------------------------------------------------------------------------|---------------------------------------------------------------------|--------------------------------|
+| Fully Trained     | $(round(dict_model_predictions["model_full"].acc_per_number[0][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_per_number[1][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_per_number[2][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_per_number[3][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_per_number[4][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_per_number[5][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_per_number[6][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_per_number[7][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_per_number[8][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_per_number[9][1], digits=2))%     | $(round(dict_model_predictions["model_full"].acc_total, digits=2))% | $(round(dict_model_predictions["model_full"].max_diff, digits=2)) |
+| No Augmentation   | $(round(dict_model_predictions["model_NoAug"].acc_per_number[0][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_per_number[1][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_per_number[2][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_per_number[3][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_per_number[4][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_per_number[5][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_per_number[6][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_per_number[7][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_per_number[8][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_per_number[9][1], digits=2))%    | $(round(dict_model_predictions["model_NoAug"].acc_total, digits=2))%  | $(round(dict_model_predictions["model_NoAug"].max_diff, digits=2))  |
+| Full Augmentation | $(round(dict_model_predictions["model_FullAug"].acc_per_number[0][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_per_number[1][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_per_number[2][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_per_number[3][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_per_number[4][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_per_number[5][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_per_number[6][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_per_number[7][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_per_number[8][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_per_number[9][1], digits=2))%  | $(round(dict_model_predictions["model_FullAug"].acc_total, digits=2))% | $(round(dict_model_predictions["model_FullAug"].max_diff, digits=2)) |
+| Only Rotation     | $(round(dict_model_predictions["model_Rotation"].acc_per_number[0][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_per_number[1][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_per_number[2][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_per_number[3][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_per_number[4][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_per_number[5][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_per_number[6][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_per_number[7][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_per_number[8][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_per_number[9][1], digits=2))% | $(round(dict_model_predictions["model_Rotation"].acc_total, digits=2))% | $(round(dict_model_predictions["model_Rotation"].max_diff, digits=2)) |
+| Only Noise        | $(round(dict_model_predictions["model_Noise"].acc_per_number[0][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_per_number[1][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_per_number[2][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_per_number[3][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_per_number[4][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_per_number[5][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_per_number[6][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_per_number[7][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_per_number[8][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_per_number[9][1], digits=2))%    | $(round(dict_model_predictions["model_Noise"].acc_total, digits=2))% | $(round(dict_model_predictions["model_Noise"].max_diff, digits=2))  |
+| Only Flip         | $(round(dict_model_predictions["model_Flip"].acc_per_number[0][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_per_number[1][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_per_number[2][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_per_number[3][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_per_number[4][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_per_number[5][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_per_number[6][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_per_number[7][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_per_number[8][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_per_number[9][1], digits=2))%     | $(round(dict_model_predictions["model_Flip"].acc_total, digits=2))% | $(round(dict_model_predictions["model_Flip"].max_diff, digits=2))  |
+"""
 
 # ╔═╡ b85c7f84-d532-44a0-a83f-7ff83d8b3939
 md"### Fully Trained Model"
 
 # ╔═╡ 2286f5d2-cf26-415d-a937-31d335734e00
-makeFigurePluto_ConfusionMatrix(pred_full_model, ycold; x_size=600, y_size=600)
+makeFigurePluto_ConfusionMatrix(dict_model_predictions["model_full"].preds, ycold; x_size=600, y_size=600)
 
 # ╔═╡ bcb962ba-15f7-44dd-9deb-d53ed4cc2d9b
 md"### Non-Augmented Model (10%)"
 
 # ╔═╡ fa6747bf-f695-4635-b00b-0297ef662883
-makeFigurePluto_ConfusionMatrix(pred_no_aug, ycold; x_size=600, y_size=600)
+makeFigurePluto_ConfusionMatrix(dict_model_predictions["model_NoAug"].preds, ycold; x_size=600, y_size=600)
 
 # ╔═╡ b87f90ac-3c14-48e2-b83b-9fff926d8119
 md"### Fully-Augmented Model (10%)"
 
 # ╔═╡ 091e2630-94df-4f6a-922b-2599e845de14
-makeFigurePluto_ConfusionMatrix(pred_aug_full, ycold; x_size=600, y_size=600)
+makeFigurePluto_ConfusionMatrix(dict_model_predictions["model_FullAug"].preds, ycold; x_size=600, y_size=600)
 
 # ╔═╡ a5651e12-67d1-484f-9f23-6ca16f93ef00
 md"### Only Rotation Model (10%)"
 
 # ╔═╡ 80dcc6b6-bf4b-45b9-b137-5c54a1266bb6
-makeFigurePluto_ConfusionMatrix(pred_rot, ycold; x_size=600, y_size=600)
+makeFigurePluto_ConfusionMatrix(dict_model_predictions["model_Rotation"].preds, ycold; x_size=600, y_size=600)
 
 # ╔═╡ 9391e495-c5a3-4e3c-9210-ca535261b70c
 md"### Only Noise Model (10%)"
 
 # ╔═╡ 5920c466-ebf5-4d66-9347-10a1ebe29efc
-makeFigurePluto_ConfusionMatrix(pred_noise, ycold; x_size=600, y_size=600)
+makeFigurePluto_ConfusionMatrix(dict_model_predictions["model_Noise"].preds, ycold; x_size=600, y_size=600)
 
 # ╔═╡ 5ca75737-143e-4a4b-9f48-84ad8f96a832
 md"### Only Flip (Mirror) Model (10%)"
 
 # ╔═╡ 5bf133d2-b92c-41e9-9ac4-04b2f3a6d873
-makeFigurePluto_ConfusionMatrix(pred_flip, ycold; x_size=600, y_size=600)
+makeFigurePluto_ConfusionMatrix(dict_model_predictions["model_Flip"].preds, ycold; x_size=600, y_size=600)
 
 # ╔═╡ ee91b0ab-2902-4d86-af4b-d817526daa50
 md"## 6 - Conclusion"
@@ -548,12 +515,11 @@ html"""
 # ╟─ae063e85-0ed0-40b1-b84c-82e3e6de0d1f
 # ╟─34189beb-75e1-4bec-acf8-d726515e80e6
 # ╟─3152263a-e1b5-43c8-b957-9f50c66b2fc4
-# ╠═4bd85dd1-6661-4c23-a1c9-389da49187e8
 # ╠═33da904c-a964-4305-a5cd-eff2fe6543c9
-# ╠═0377fa30-04f9-452e-8d3a-c32f9635a7ad
 # ╟─37d35f65-6ed8-4eef-b254-5c6d06f01c06
 # ╠═9ebf65a7-41f0-48e0-a67e-4789858fdc5e
-# ╠═21bc1b1b-3319-443b-9401-4a4c5cba6e4f
+# ╟─862df3c3-5275-4a81-abfc-e53238dbe09d
+# ╟─a8f0b819-0089-48a3-99f3-69797bac2257
 # ╟─b85c7f84-d532-44a0-a83f-7ff83d8b3939
 # ╟─2286f5d2-cf26-415d-a937-31d335734e00
 # ╟─bcb962ba-15f7-44dd-9deb-d53ed4cc2d9b

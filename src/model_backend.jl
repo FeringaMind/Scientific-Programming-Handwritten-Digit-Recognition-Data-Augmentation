@@ -277,7 +277,8 @@ module LeNet5
     Returns:
         loss_history: The loss_history of the training
     """
-    function train!(dict_model_funs, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
+
+    function train!(dict_models, data; epochs=10, batchsize=32, lambda=1e-2, eta=3e-4)
 
         # setup data and model
         xtrain, ytrain = data
@@ -294,15 +295,6 @@ module LeNet5
         time_history = []
         actual = Flux.onecold(ytrain |> cpu, 0:9)
         for epoch in 1:epochs
-    
-            #-Augmentation with aug_fun for one model training
-            #aug_data= aug_fun(data[1], data[2], chance)
-
-            #-Augmentattion with combined for one model training and add augmentation
-            #combined_x = cat(xtrain, aug_data[1]; dims=ndims(xtrain)) #only for the add_augmentation
-            #combined_y = cat(ytrain, aug_data_[2]; dims=ndims(ytrain))
-            #combined = (combined_x, combined_y)
-
             train_loader = Flux.DataLoader(data, batchsize=batchsize, shuffle=true) #combined instead of aug_data for the add augmentation
 
             println(repeat("-", width))
@@ -310,26 +302,31 @@ module LeNet5
 
             epoch_loss_history = []
 
-            for (model,(funs, name)) in dict_model_funs #training all models with the same batches but different augmentations
-                opt_state = Flux.setup(opt_rule, model)
+            for (name, model_s) in dict_models #training all models with the same batches but different augmentations
+                if model_s.should_train == false
+                    continue
+                end
+                
+                opt_state = Flux.setup(opt_rule, model_s.model)
+
                 time_train = @elapsed begin
                     for xy_cpu in train_loader
                         
                         x, y = xy_cpu |> cpu	# transfer data to device
-                        (x, y) = funs(x, y)
+                        (x, y) = model_s.aug_function(x, y)
                 
-                        loss, grads = Flux.withgradient(model) do m
+                        loss, grads = Flux.withgradient(model_s.model) do m
                             loss_function(m(x), y)
                         end
 
                         push!(loss_history, loss)                        
                         push!(epoch_loss_history, loss)
-                        Flux.update!(opt_state, model, grads[1]) # update parameters pf model
+                        Flux.update!(opt_state, model_s.model, grads[1]) # update parameters pf model
                     end
                 end
                 push!(time_history, time_train)
 
-                y_hat = model(xtrain |> cpu) # get the models prediction after training
+                y_hat = model_s.model(xtrain |> cpu) # get the models prediction after training
                 preds = Flux.onecold(y_hat |> cpu, 0:9)
                 correct = count(preds .== actual)
                 total = length(actual)
@@ -372,7 +369,6 @@ module LeNet5
         return preds
     end
 
-
     """
     accuracy_per_class(preds, labels)
 
@@ -396,7 +392,6 @@ module LeNet5
         return class_accuracies
     end
 
-
     """
     overall_accuracy(preds, labels)
 
@@ -414,7 +409,6 @@ module LeNet5
         return correct / length(labels) * 100 # compute pptt of accuracy of correct predictions
     end
     
-
     ### Exports
     export createModel
     export getData_train

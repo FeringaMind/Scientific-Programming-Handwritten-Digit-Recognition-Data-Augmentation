@@ -66,7 +66,7 @@ module Augmentation
     Returns:
         Rotated image.
     """
-    function rotate_image(image, max_angle_deg=45) 
+    function rotate_image(image, max_angle_deg=10) 
         angle_rad = rand(-max_angle_deg:max_angle_deg) * (π / 180) # selects random angle in degrees from the range [–20, +20] and converts it to radians
         center = Tuple(round.(Int, size(image) ./ 2)) # determine center of image
         tfm = recenter(ImageTransformations.Rotations.RotMatrix(angle_rad), center) # rotationmatrix around center
