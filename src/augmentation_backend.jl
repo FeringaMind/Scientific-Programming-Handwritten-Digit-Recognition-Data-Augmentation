@@ -14,7 +14,7 @@ module Augmentation
     Returns:
         Augmented image with added noise.
     """
-    function add_noise(image, noise_level_range=-0.15:0.15)
+    function add_noise(image, noise_level_range=-0.1:0.1)
         noise_level = rand(noise_level_range)
         noise = noise_level * randn(size(image))
         return clamp.(image .+ noise, 0.0, 1.0) # ensures pixel value stays between 0.0 and 1.0
