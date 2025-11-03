@@ -130,11 +130,11 @@ begin
 	eta_full = 3e-4
 	set_full = 5421
 	
-	epochs_frac = 40
-	batchsize_frac = 32
-	lambda_frac = 0
-	eta_frac = 3e-4
-	set_frac = 542
+	epochs_frac = 20
+	batchsize_frac = 16
+	lambda_frac = 1e-3
+	eta_frac = 3e-3
+	set_frac = 270
 	nothing
 end
 
@@ -432,7 +432,7 @@ html"""
 """
 
 # ╔═╡ Cell order:
-# ╟─ba491ad9-0c09-44a3-ab98-21919da7c62e
+# ╠═ba491ad9-0c09-44a3-ab98-21919da7c62e
 # ╟─d1cbf365-b3b1-494f-8158-f7c3b33a9fd3
 # ╟─a8cfdd5a-c5ef-4ef0-946c-d9594724acc3
 # ╟─9dc2706a-7b71-4576-bb04-68c7aacbb9ad
@@ -452,7 +452,7 @@ html"""
 # ╟─34189beb-75e1-4bec-acf8-d726515e80e6
 # ╟─3152263a-e1b5-43c8-b957-9f50c66b2fc4
 # ╟─efc1f254-e5b0-4cc6-94f3-13ca9c77aa9c
-# ╟─22cddec6-24bc-4afd-9efb-a428880355ea
+# ╠═22cddec6-24bc-4afd-9efb-a428880355ea
 # ╟─146b2db4-3834-453d-887e-e70cc7f9de20
 # ╟─33da904c-a964-4305-a5cd-eff2fe6543c9
 # ╟─37d35f65-6ed8-4eef-b254-5c6d06f01c06
